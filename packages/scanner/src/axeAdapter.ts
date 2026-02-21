@@ -1,1 +1,71 @@
-// Playwright + axe-core integration for accessibility scanning.\n\nexport type RawViolation = {\n  ruleId: string;\n  impact: 'critical' | 'serious' | 'moderate' | 'minor';\n  message: string;\n  selector?: string;\n  wcagRefs?: string[];\n};\n\nexport type ScanResult = {\n  violations: RawViolation[];\n  html: string;\n  screenshotBuffer: Buffer;\n  title: string;\n};\n\nexport async function scanPage(url: string): Promise<ScanResult> {\n  const { chromium } = await import('playwright');\n  const browser = await chromium.launch({ headless: true });\n  const page = await browser.newPage();\n  await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });\n  const title = await page.title();\n  const axeResults = await (await import('@axe-core/playwright')).AxeBuilder({ page })\n    .withTags(['wcag2a', 'wcag2aa'])\n    .analyze();\n  const screenshotBuffer = await page.screenshot({ fullPage: true });\n  const html = await page.content();\n  await page.close();\n  await browser.close();\n  const violations: RawViolation[] = axeResults.violations.map((v) => ({\n    ruleId: v.id,\n    impact: v.impact as 'critical' | 'serious' | 'moderate' | 'minor',\n    message: v.description,\n    selector: v.nodes[0]?.target?.join(' >> ') || undefined,\n    wcagRefs: v.tags?.filter((t) => t.startsWith('wcag')) || [],\n  }));\n  return { violations, html, screenshotBuffer, title };\n}
+// Playwright + axe-core integration for accessibility scanning.
+
+export type RawViolation = {
+  ruleId: string;
+  impact: 'critical' | 'serious' | 'moderate' | 'minor';
+  message: string;
+  selector?: string;
+  wcagRefs?: string[];
+};
+
+export type ScanResult = {
+  violations: RawViolation[];
+  html: string;
+  screenshotBuffer: Buffer;
+  title: string;
+};
+
+export async function scanPage(url: string): Promise<ScanResult> {
+  const { chromium } = await import('playwright');
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+  const title = await page.title();
+  const axeResults = await (await import('@axe-core/playwright')).AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa'])
+    .analyze();
+  const screenshotBuffer = await page.screenshot({ fullPage: true });
+  const html = await page.content();
+  await page.close();
+  await browser.close();
+  const violations: RawViolation[] = axeResults.violations.map((v) => ({
+    ruleId: v.id,
+    impact: v.impact as 'critical' | 'serious' | 'moderate' | 'minor',
+    message: v.description,
+    selector: v.nodes[0]?.target?.join(' >> ') || undefined,
+    wcagRefs: v.tags?.filter((t) => t.startsWith('wcag')) || [],
+  }));
+  return { violations, html, screenshotBuffer, title };
+}
+
+export async function crawlPage(url: string): Promise<{title: string; screenshotBuffer: Buffer}> {
+  const { chromium } = await import('playwright');
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+  const title = await page.title();
+  const screenshotBuffer = await page.screenshot({ fullPage: true });
+  await page.close();
+  await browser.close();
+  return { title, screenshotBuffer };
+}
+
+export async function analyzePage(url: string): Promise<RawViolation[]> {
+  const { chromium } = await import('playwright');
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+  const axeResults = await (await import('@axe-core/playwright')).AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa'])
+    .analyze();
+  await page.close();
+  await browser.close();
+  const violations: RawViolation[] = axeResults.violations.map((v) => ({
+    ruleId: v.id,
+    impact: v.impact as 'critical' | 'serious' | 'moderate' | 'minor',
+    message: v.description,
+    selector: v.nodes[0]?.target?.join(' >> ') || undefined,
+    wcagRefs: v.tags?.filter((t) => t.startsWith('wcag')) || [],
+  }));
+  return violations;
+}
