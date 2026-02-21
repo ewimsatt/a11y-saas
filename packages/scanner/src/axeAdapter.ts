@@ -1,13 +1,1 @@
-// Stub adapter - wire Playwright page + axe-core here.
-export type RawViolation = {
-  ruleId: string;
-  impact: 'critical' | 'serious' | 'moderate' | 'minor';
-  message: string;
-  selector?: string;
-  wcagRefs?: string[];
-};
-
-export async function runAxeOnPage(_url: string): Promise<RawViolation[]> {
-  // TODO: integrate Playwright + axe-core execution.
-  return [];
-}
+// Playwright + axe-core integration for accessibility scanning.\n\nexport type RawViolation = {\n  ruleId: string;\n  impact: 'critical' | 'serious' | 'moderate' | 'minor';\n  message: string;\n  selector?: string;\n  wcagRefs?: string[];\n};\n\nexport type ScanResult = {\n  violations: RawViolation[];\n  html: string;\n  screenshotBuffer: Buffer;\n  title: string;\n};\n\nexport async function scanPage(url: string): Promise<ScanResult> {\n  const { chromium } = await import('playwright');\n  const browser = await chromium.launch({ headless: true });\n  const page = await browser.newPage();\n  await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });\n  const title = await page.title();\n  const axeResults = await (await import('@axe-core/playwright')).AxeBuilder({ page })\n    .withTags(['wcag2a', 'wcag2aa'])\n    .analyze();\n  const screenshotBuffer = await page.screenshot({ fullPage: true });\n  const html = await page.content();\n  await page.close();\n  await browser.close();\n  const violations: RawViolation[] = axeResults.violations.map((v) => ({\n    ruleId: v.id,\n    impact: v.impact as 'critical' | 'serious' | 'moderate' | 'minor',\n    message: v.description,\n    selector: v.nodes[0]?.target?.join(' >> ') || undefined,\n    wcagRefs: v.tags?.filter((t) => t.startsWith('wcag')) || [],\n  }));\n  return { violations, html, screenshotBuffer, title };\n}

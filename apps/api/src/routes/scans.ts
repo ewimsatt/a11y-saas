@@ -1,15 +1,1 @@
-import { FastifyInstance } from 'fastify';
-
-export async function scanRoutes(app: FastifyInstance) {
-  app.post('/scans/:projectId/run', async (req, reply) => {
-    const { projectId } = req.params as { projectId: string };
-    // TODO: enqueue crawl/analyze/diff/evidence jobs
-    return reply.code(202).send({ scanId: 'scan_stub', projectId, status: 'queued' });
-  });
-
-  app.get('/scans/:id/issues', async (req) => {
-    const { id } = req.params as { id: string };
-    // TODO: fetch issues by scan id
-    return { scanId: id, issues: [] };
-  });
-}
+import { FastifyInstance } from 'fastify';\nimport { prisma } from '@a11y/db';\n\nexport async function scanRoutes(app: FastifyInstance) {\n  app.post('/scans/:projectId/run', async (req, reply) => {\n    const { projectId } = req.params as { projectId: string };\n    const body = req.body as { urls?: string[] } || { urls: [] };\n    const project = await prisma.project.findUnique({ where: { id: projectId } });\n    if (!project) {\n      return reply.code(404).send({ error: 'Project not found' });\n    }\n    const urls = body.urls?.length ? body.urls! : [project.baseUrl];\n    const scan = await prisma.scan.create({\n      data: { projectId, status: 'queued' }\n    });\n    for (const url of urls) {\n      await prisma.page.create({\n        data: { scanId: scan.id, url }\n      });\n    }\n    return reply.code(202).send({ scanId: scan.id, projectId, status: 'queued' });\n  });\n\n  app.get('/scans/:id/issues', async (req) => {\n    const { id } = req.params as { id: string };\n    const issues = await prisma.finding.findMany({\n      where: { scanId: id, status: 'OPEN' },\n      include: {\n        rule: true,\n        evidence: true\n      }\n    });\n    return { scanId: id, issues };\n  });\n}
