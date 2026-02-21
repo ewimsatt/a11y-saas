@@ -1,0 +1,9 @@
+{
+  "name": "a11y-saas-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "echo 'Run app-specific dev scripts'",
+    "seed": "node scripts/seed.js"
+  }
+}

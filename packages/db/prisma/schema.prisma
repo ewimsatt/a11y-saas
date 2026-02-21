@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Severity {
+  CRITICAL
+  SERIOUS
+  MODERATE
+  MINOR
+}
+
+enum IssueStatus {
+  OPEN
+  FIXED
+  REGRESSED
+  WAIVED
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String
+  baseUrl   String
+  createdAt DateTime @default(now())
+  scans     Scan[]
+}
+
+model Scan {
+  id          String    @id @default(cuid())
+  projectId   String
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  status      String    @default("queued")
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pages       Page[]
+  findings    Finding[]
+}
+
+model Page {
+  id        String  @id @default(cuid())
+  scanId    String
+  url       String
+  status    Int?
+  title     String?
+  scan      Scan    @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  findings  Finding[]
+
+  @@index([scanId, url])
+}
+
+model Rule {
+  id         String    @id
+  title      String
+  wcagRefs   String[]
+  guideline  String?
+  findings   Finding[]
+}
+
+model Finding {
+  id          String      @id @default(cuid())
+  scanId      String
+  pageId      String
+  ruleId      String
+  severity    Severity
+  status      IssueStatus @default(OPEN)
+  fingerprint String
+  selector    String?
+  line        Int?
+  col         Int?
+  message     String
+  count       Int         @default(1)
+  scan        Scan        @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  page        Page        @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  rule        Rule        @relation(fields: [ruleId], references: [id])
+  evidence    Evidence[]
+  waivers     Waiver[]
+
+  @@unique([scanId, fingerprint])
+  @@index([status, severity])
+}
+
+model Evidence {
+  id         String   @id @default(cuid())
+  findingId  String
+  screenshot String?
+  domSnippet String?
+  meta       Json?
+  finding    Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+}
+
+model Waiver {
+  id         String   @id @default(cuid())
+  findingId  String
+  reason     String
+  createdBy  String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime?
+  finding    Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+}

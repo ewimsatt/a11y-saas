@@ -1,0 +1,16 @@
+{
+  "project": { "name": "Propellic", "baseUrl": "https://www.propellic.com" },
+  "scan": { "id": "scan_sample_001", "status": "completed" },
+  "findings": [
+    {
+      "ruleId": "AccHtmlHeadingEmpty",
+      "severity": "CRITICAL",
+      "wcagRefs": ["1.3.1"],
+      "url": "https://www.propellic.com/blog/shopify-seo",
+      "line": 176,
+      "col": 13659,
+      "message": "Headings should not be empty",
+      "selector": "h2:empty"
+    }
+  ]
+}
