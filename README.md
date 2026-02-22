@@ -1,76 +1,167 @@
-# A11Y SaaS — Open Source Accessibility Scanner
+# A11Y SaaS
 
-Automated WCAG 2.0 A/AA scanning with fingerprint-based diff tracking.
+[![Status](https://img.shields.io/badge/status-alpha-orange)](https://github.com/ewimsatt/a11y-saas)
+[![License](https://img.shields.io/badge/license-none-lightgrey)](https://github.com/ewimsatt/a11y-saas)
+[![Node](https://img.shields.io/badge/node-%3E%3D22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![pnpm](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
+[![Prisma](https://img.shields.io/badge/prisma-ORM-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)
+[![Playwright](https://img.shields.io/badge/playwright-scanner-2EAD33?logo=playwright&logoColor=white)](https://playwright.dev/)
+[![axe-core](https://img.shields.io/badge/axe--core-accessibility-663399)](https://github.com/dequelabs/axe-core)
+[![Redis](https://img.shields.io/badge/redis-queue-DC382D?logo=redis&logoColor=white)](https://redis.io/)
 
-**Core flow:** `scan run → crawl → axe analyze → diff (OPEN/FIXED/REGRESSED) → evidence screenshots`
+Open-source accessibility scanning SaaS foundation.
+
+It scans pages for WCAG issues, normalizes findings into stable fingerprints, stores evidence, and exposes API endpoints for triage workflows.
 
 ---
 
-## Quickstart
+## Current maturity
 
-> **Full step-by-step:** `docs/first-scan-tonight.md`  
-> **What's implemented:** `docs/current-scope.md`
+**Alpha** - demo-ready vertical slice, not production-hardened.
+
+Working now:
+- Project creation
+- Scan run enqueue
+- Worker processing (crawl/analyze/diff/evidence lanes)
+- Findings persistence
+- Issues listing by scan
+- Waive issue endpoint
+- Evidence serving from local filesystem
+
+Not finished:
+- Full web app UX
+- Multi-tenant auth
+- Production storage integration (MinIO/S3 upload flow)
+- Enterprise reliability/observability hardening
+
+---
+
+## Architecture
+
+Core flow:
+
+`scan run -> crawl -> analyze (Playwright + axe) -> normalize/fingerprint -> diff -> issues + evidence`
+
+### Monorepo layout
+
+- `apps/api` - Fastify API
+- `apps/worker` - BullMQ workers
+- `apps/web` - UI shell
+- `packages/scanner` - scanner/fingerprint logic
+- `packages/db` - Prisma schema + client
+- `packages/shared` - shared types
+- `packages/config` - config placeholder
+
+---
+
+## Quickstart (local)
+
+### 1) Start infrastructure
 
 ```bash
-# 1. Infra
 docker compose up -d
+```
 
-# 2. Deps
+### 2) Install dependencies
+
+```bash
 pnpm install
+```
 
-# 3. DB
+### 3) Configure env
+
+```bash
 cp .env.example .env
-pnpm --filter @a11y/db exec -- npx prisma migrate dev --name init
-pnpm --filter @a11y/db exec -- npx prisma generate
+```
 
-# 4. Playwright browsers (one-time)
-pnpm --filter @a11y/scanner exec -- npx playwright install chromium
+### 4) Prepare database
 
-# 5. Start (two terminals)
-cd apps/api && npx tsx src/index.ts       # :3001
-cd apps/worker && npx tsx src/index.ts    # BullMQ workers
+```bash
+pnpm --filter @a11y/db db:generate
+cd packages/db
+npx prisma db push --accept-data-loss
+cd ../..
+```
 
-# 6. Scan
-PROJ_ID=$(curl -s -X POST http://localhost:3001/ \
-  -H "Content-Type: application/json" \
-  -d '{"name":"demo","baseUrl":"https://www.w3.org/WAI/demos/2019/color-contrast/"}' \
-  | jq -r .id)
+### 5) Install Playwright browser
 
-SCAN_ID=$(curl -s -X POST "http://localhost:3001/scans/$PROJ_ID/run" \
-  -H "Content-Type: application/json" -d '{}' | jq -r .scanId)
+```bash
+pnpm --filter @a11y/scanner pw:install
+```
 
-# Wait ~60s, then:
-curl "http://localhost:3001/scans/$SCAN_ID/issues" | jq '.issues | length'
+### 6) Run API + worker
+
+```bash
+pnpm --filter @a11y/api dev
+# new terminal
+pnpm --filter @a11y/worker dev
 ```
 
 ---
 
-## Monorepo
+## First scan (curl)
 
-| Package | Purpose |
-|---------|---------|
-| `apps/api` | Fastify REST API (port 3001) |
-| `apps/worker` | BullMQ workers: crawl → analyze → diff → evidence |
-| `apps/web` | Web UI (empty shell — not yet built) |
-| `packages/scanner` | Playwright + axe-core adapter + fingerprint |
-| `packages/db` | Prisma client + schema |
-| `packages/shared` | Shared TypeScript types |
-| `packages/config` | Env/config (placeholder) |
+```bash
+# Create project
+PROJECT_ID=$(curl -s -X POST http://localhost:3001/ \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Demo","baseUrl":"https://www.w3.org/WAI/demos/2019/color-contrast/"}' | jq -r .id)
 
-## API Endpoints
+# Start scan
+SCAN_ID=$(curl -s -X POST "http://localhost:3001/scans/$PROJECT_ID/run" \
+  -H 'Content-Type: application/json' -d '{}' | jq -r .scanId)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/` | List projects |
-| `POST` | `/` | Create project `{name, baseUrl}` |
-| `POST` | `/scans/:projectId/run` | Run scan (enqueues to BullMQ) |
-| `GET` | `/scans/:id/issues` | List findings for scan |
-| `GET` | `/evidence/pages/:pageId.png` | Serve evidence screenshot |
+# Fetch issues (after worker completes)
+curl -s "http://localhost:3001/scans/$SCAN_ID/issues" | jq
+```
+
+---
+
+## API surface (current)
+
+> Note: current issue endpoints are mounted at root path shape (`/:id/...`). A namespaced `/issues/:id/...` route is planned.
+
+- `GET /` - list projects
+- `POST /` - create project
+- `POST /scans/:projectId/run` - enqueue scan
+- `GET /scans/:id/issues` - list findings for scan
+- `GET /:id/evidence` - get evidence for issue/finding id
+- `POST /:id/waive` - waive issue/finding id
+- `GET /evidence/*` - static evidence files
+
+---
 
 ## Docs
 
-- `docs/first-scan-tonight.md` — exact commands to run your first scan
-- `docs/current-scope.md` — what works now vs. not yet
-- `docs/architecture.md` — system diagram
-- `docs/bootstrap.md` — Phase 2 BullMQ setup notes
-- `docs/build-plan-phase2.md` — sprint board and acceptance checks
+- `docs/first-scan-tonight.md` - exact local run flow
+- `docs/current-scope.md` - implemented vs pending
+- `docs/qa-wrapup.md` - QA gate report
+- `docs/architecture.md` - architecture diagram
+- `docs/build-plan-phase2.md` - execution board
+
+---
+
+## Roadmap (short)
+
+- [ ] Normalize endpoint naming (`/projects`, `/issues/:id/...`)
+- [ ] Complete evidence API + object storage support
+- [ ] Finish web Issues UI (filters, evidence pane, waivers)
+- [ ] Add auth and multi-tenant boundaries
+- [ ] CI smoke test for first-scan flow
+
+---
+
+## Contributing
+
+PRs welcome for focused, incremental improvements.
+
+Recommended scope for first contribution:
+1. Pick one API contract gap
+2. Add/update test fixture
+3. Update docs with exact run command changes
+
+---
+
+## Disclaimer
+
+This project helps detect accessibility issues. It does **not** guarantee legal compliance on its own. Manual audits remain essential.
