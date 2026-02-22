@@ -1,103 +1,98 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-enum Severity {
-  CRITICAL
-  SERIOUS
-  MODERATE
-  MINOR
-}
-
-enum IssueStatus {
-  OPEN
-  FIXED
-  REGRESSED
-  WAIVED
 }
 
 model Project {
   id        String   @id @default(cuid())
-  name      String
-  baseUrl   String
+  name      String   @db.VarChar(100)
+  baseUrl   String   @db.VarChar(500)
   createdAt DateTime @default(now())
   scans     Scan[]
 }
 
 model Scan {
-  id          String    @id @default(cuid())
+  id          String     @id @default(cuid())
   projectId   String
-  startedAt   DateTime  @default(now())
+  status      ScanStatus @default(pending)
+  startedAt   DateTime?
   completedAt DateTime?
-  status      String    @default("queued")
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   pages       Page[]
   findings    Finding[]
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model Page {
-  id        String  @id @default(cuid())
-  scanId    String
-  url       String
-  status    Int?
-  title     String?
-  scan      Scan    @relation(fields: [scanId], references: [id], onDelete: Cascade)
-  findings  Finding[]
-
-  @@index([scanId, url])
+  id       String    @id @default(cuid())
+  scanId   String
+  url      String    @db.VarChar(1000)
+  title    String?
+  status   Int?
+  scan     Scan      @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  findings Finding[]
 }
 
 model Rule {
-  id         String    @id
-  title      String
-  wcagRefs   String[]
-  guideline  String?
-  findings   Finding[]
+  id        String   @id
+  title     String
+  wcagRefs  String[]
+  findings  Finding[]
 }
 
 model Finding {
-  id          String      @id @default(cuid())
-  scanId      String
-  pageId      String
-  ruleId      String
-  severity    Severity
-  status      IssueStatus @default(OPEN)
-  fingerprint String
-  selector    String?
-  line        Int?
-  col         Int?
-  message     String
-  count       Int         @default(1)
-  scan        Scan        @relation(fields: [scanId], references: [id], onDelete: Cascade)
-  page        Page        @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  rule        Rule        @relation(fields: [ruleId], references: [id])
-  evidence    Evidence[]
-  waivers     Waiver[]
-
-  @@unique([scanId, fingerprint])
-  @@index([status, severity])
+  id              String       @id @default(cuid())
+  scanId          String
+  pageId          String
+  ruleId          String
+  severity        Severity
+  fingerprint     String
+  selector        String?
+  message         String
+  status          FindingStatus @default(OPEN)
+  waivedAt        DateTime?
+  waivedReason    String?
+  waivedExpiresAt DateTime?
+  scan            Scan         @relation(fields: [scanId], references: [id])
+  page            Page         @relation(fields: [pageId], references: [id])
+  rule            Rule         @relation(fields: [ruleId], references: [id])
+  evidence        Evidence?
+  @@unique([scanId, fingerprint], name: "scan_fingerprint")
 }
 
 model Evidence {
-  id         String   @id @default(cuid())
-  findingId  String
-  screenshot String?
+  id         String  @id @default(cuid())
+  findingId  String  @unique
+  screenshot String  @db.VarChar(500)
   domSnippet String?
   meta       Json?
-  finding    Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  finding    Finding @relation(fields: [findingId], references: [id], onDelete: Cascade)
 }
 
-model Waiver {
-  id         String   @id @default(cuid())
-  findingId  String
-  reason     String
-  createdBy  String
-  createdAt  DateTime @default(now())
-  expiresAt  DateTime?
-  finding    Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+enum ScanStatus {
+  pending
+  queued
+  crawling
+  analyzing
+  diffing
+  evidence
+  completed
+  failed
+}
+
+enum Severity {
+  MINOR
+  MODERATE
+  SERIOUS
+  CRITICAL
+}
+
+enum FindingStatus {
+  OPEN
+  FIXED
+  REGRESSED
+  WAIVED
 }

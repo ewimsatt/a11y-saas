@@ -23,10 +23,12 @@ export async function projectRoutes(app: FastifyInstance) {
   app.post('/', async (req, reply) => {
     try {
       const input = createProjectSchema.parse(req.body);
+      console.log('Creating project with input:', input);
       const project = await prisma.project.create({ data: input });
       return reply.code(201).send(project);
     } catch (e: any) {
-      return reply.code(400).send({ error: e.errors?.[0]?.message || e.message });
+      console.error('Full error:', e);
+      return reply.code(400).send({ error: e.message, stack: e.stack });
     }
   });
 }

@@ -1,1 +1,19 @@
-{ "name": "@a11y/db", "private": true, "type": "module" }
+{
+  "name": "@a11y/db",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./prisma": "./generated/prisma/index.js"
+  },
+  "scripts": {
+    "prisma": "prisma",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio"
+  },
+  "devDependencies": {
+    "dotenv": "^17.3.1"
+  }
+}
