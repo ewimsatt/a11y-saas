@@ -1,7 +1,7 @@
 # A11Y SaaS
 
 [![Status](https://img.shields.io/badge/status-alpha-orange)](https://github.com/ewimsatt/a11y-saas)
-[![License](https://img.shields.io/badge/license-none-lightgrey)](https://github.com/ewimsatt/a11y-saas)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-F69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
 [![Prisma](https://img.shields.io/badge/prisma-ORM-2D3748?logo=prisma&logoColor=white)](https://www.prisma.io/)
