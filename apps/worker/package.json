@@ -1,1 +1,13 @@
-{ "name": "@a11y/worker", "private": true, "type": "module" }
+{
+  "name": "@a11y/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@a11y/db": "workspace:*",
+    "@a11y/scanner": "workspace:*"
+  }
+}

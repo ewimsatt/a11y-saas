@@ -1,1 +1,8 @@
-{ "name": "@a11y/scanner", "private": true, "type": "module" }
+{
+  "name": "@a11y/scanner",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pw:install": "playwright install"
+  }
+}

@@ -1,0 +1,16 @@
+
+{
+  "project": "A11Y SaaS",
+  "target": "MVP Vertical Slice",
+  "lastUpdated": "2026-02-21T23:46:00Z",
+  "columns": ["backlog", "in-progress", "review", "done"],
+  "tasks": [
+    {"id":"a11y-01","title":"Wire Playwright + axe scanner execution","description":"Run live URL scan and emit raw violations.","column":"in-progress","priority":"critical","assignee":"elon"},
+    {"id":"a11y-02","title":"Persist findings/evidence via Prisma","description":"Store scan/page/rule/finding/evidence records end-to-end.","column":"in-progress","priority":"critical","assignee":"elon"},
+    {"id":"a11y-03","title":"Queue pipeline crawl/analyze/diff/evidence","description":"Replace polling with BullMQ-backed workers.","column":"backlog","priority":"high","assignee":"elon"},
+    {"id":"a11y-04","title":"Issues API contracts operational","description":"POST project/scan, GET issues/evidence, POST waive with validation.","column":"backlog","priority":"high","assignee":"omar"},
+    {"id":"a11y-05","title":"Projects tab + board visibility in Mission Control","description":"Show tracker state and lane health.","column":"done","priority":"medium","assignee":"omar"},
+    {"id":"a11y-06","title":"Kite QA gate for vertical slice","description":"Pass/fail report with blockers and safe fixes.","column":"review","priority":"high","assignee":"kite"}
+  ]
+}
+

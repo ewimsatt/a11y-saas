@@ -31,4 +31,28 @@ export async function projectRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: e.message, stack: e.stack });
     }
   });
+
+  app.get('/projects', async () => {
+    const projects = await prisma.project.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: { scans: true }
+        }
+      }
+    });
+    return projects;
+  });
+
+  app.post('/projects', async (req, reply) => {
+    try {
+      const input = createProjectSchema.parse(req.body);
+      console.log('Creating project with input:', input);
+      const project = await prisma.project.create({ data: input });
+      return reply.code(201).send(project);
+    } catch (e: any) {
+      console.error('Full error:', e);
+      return reply.code(400).send({ error: e.message, stack: e.stack });
+    }
+  });
 }

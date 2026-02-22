@@ -20,7 +20,7 @@ export async function scanRoutes(app: FastifyInstance) {
       const input = runScanSchema.parse(req.body);
       const urls = input.urls?.length ? input.urls : [project.baseUrl];
       const scan = await prisma.scan.create({
-        data: { projectId, status: 'queued' }
+        data: { projectId, status: 'queued', startedAt: new Date() }
       });
       for (const url of urls) {
         await prisma.page.create({

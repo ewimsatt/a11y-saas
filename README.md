@@ -103,7 +103,7 @@ pnpm --filter @a11y/worker dev
 
 ```bash
 # Create project
-PROJECT_ID=$(curl -s -X POST http://localhost:3001/ \
+PROJECT_ID=$(curl -s -X POST http://localhost:3001/projects \
   -H 'Content-Type: application/json' \
   -d '{"name":"Demo","baseUrl":"https://www.w3.org/WAI/demos/2019/color-contrast/"}' | jq -r .id)
 
@@ -115,19 +115,24 @@ SCAN_ID=$(curl -s -X POST "http://localhost:3001/scans/$PROJECT_ID/run" \
 curl -s "http://localhost:3001/scans/$SCAN_ID/issues" | jq
 ```
 
+## Smoke test
+
+Run `scripts/smoke.sh` (requires `jq`, assumes API+worker running).
+
 ---
 
-## API surface (current)
+## API surface
 
-> Note: current issue endpoints are mounted at root path shape (`/:id/...`). A namespaced `/issues/:id/...` route is planned.
-
-- `GET /` - list projects
-- `POST /` - create project
+Primary routes:
+- `GET /projects` - list projects
+- `POST /projects` - create project
 - `POST /scans/:projectId/run` - enqueue scan
 - `GET /scans/:id/issues` - list findings for scan
-- `GET /:id/evidence` - get evidence for issue/finding id
-- `POST /:id/waive` - waive issue/finding id
+- `GET /issues/:id/evidence` - get evidence for issue/finding id
+- `POST /issues/:id/waive` - waive issue/finding id
 - `GET /evidence/*` - static evidence files
+
+Legacy root aliases supported: `GET/POST /`, `/:id/evidence`, `/:id/waive`.
 
 ---
 
@@ -143,7 +148,7 @@ curl -s "http://localhost:3001/scans/$SCAN_ID/issues" | jq
 
 ## Roadmap (short)
 
-- [ ] Normalize endpoint naming (`/projects`, `/issues/:id/...`)
+- [x] Normalize endpoint naming (`/projects`, `/issues/:id/...`) via aliases
 - [ ] Complete evidence API + object storage support
 - [ ] Finish web Issues UI (filters, evidence pane, waivers)
 - [ ] Add auth and multi-tenant boundaries
