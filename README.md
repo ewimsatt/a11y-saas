@@ -89,13 +89,17 @@ cd ../..
 pnpm --filter @a11y/scanner pw:install
 ```
 
-### 6) Run API + worker
+### 6) Run API + worker + web
 
 ```bash
 pnpm --filter @a11y/api dev
 # new terminal
 pnpm --filter @a11y/worker dev
+# new terminal
+pnpm --filter @a11y/web dev
 ```
+
+Web UI: `http://localhost:3010`
 
 ---
 

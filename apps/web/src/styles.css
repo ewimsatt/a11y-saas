@@ -1,0 +1,20 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #0e1116; color: #e8edf3; }
+.app { max-width: 1200px; margin: 0 auto; padding: 20px; }
+header h1 { margin: 0 0 6px; }
+header p { margin: 0 0 16px; color: #93a2b8; }
+.panel { background: #151b23; border: 1px solid #2a3545; border-radius: 10px; padding: 12px; }
+.controls { margin-bottom: 12px; }
+.row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+input, select, textarea, button { background: #0f151d; color: #e8edf3; border: 1px solid #334155; border-radius: 6px; padding: 8px; }
+button { cursor: pointer; background: #1d4ed8; border-color: #1d4ed8; }
+button:hover { background: #2563eb; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid #233040; }
+tr.active { background: #1f2937; }
+tr:hover { background: #16202b; cursor: pointer; }
+.shot { width: 100%; border-radius: 8px; border: 1px solid #334155; margin-bottom: 8px; }
+pre { max-height: 220px; overflow: auto; background: #0b1118; padding: 8px; border-radius: 6px; border: 1px solid #263446; white-space: pre-wrap; }
+.msg { margin-top: 10px; color: #93c5fd; }
+@media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
