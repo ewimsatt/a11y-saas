@@ -2,7 +2,7 @@
 {
   "project": "A11Y SaaS",
   "target": "MVP Vertical Slice",
-  "lastUpdated": "2026-02-22T20:15:00Z",
+  "lastUpdated": "2026-02-22T20:28:00Z",
   "columns": ["backlog", "in-progress", "review", "done"],
   "tasks": [
     {"id":"a11y-01","title":"Wire Playwright + axe scanner execution","description":"Run live URL scan and emit raw violations.","column":"backlog","priority":"critical","assignee":"elon"},
@@ -11,7 +11,8 @@
     {"id":"a11y-04","title":"Issues API contracts operational","description":"POST project/scan, GET issues/evidence, POST waive with validation.","column":"done","priority":"high","assignee":"omar"},
     {"id":"a11y-05","title":"Projects tab + board visibility in Mission Control","description":"Show tracker state and lane health.","column":"done","priority":"medium","assignee":"omar"},
     {"id":"a11y-06","title":"Kite QA gate for vertical slice","description":"Pass/fail report with blockers and safe fixes.","column":"backlog","priority":"high","assignee":"kite"},
-    {"id":"a11y-07","title":"Web UI for issue triage","description":"Projects + run scan + issues filters + evidence panel + waive action.","column":"done","priority":"critical","assignee":"omar"}
+    {"id":"a11y-07","title":"Web UI for issue triage","description":"Projects + run scan + issues filters + evidence panel + waive action.","column":"done","priority":"critical","assignee":"omar"},
+    {"id":"a11y-08","title":"Mission-control visual polish + quick filter presets","description":"Align UI styling with OpsDeck vibe and add one-click triage presets.","column":"done","priority":"medium","assignee":"omar"}
   ]
 }
 

@@ -34,6 +34,24 @@ export default function App() {
   const [waiveReason, setWaiveReason] = useState('')
   const [msg, setMsg] = useState('')
 
+  function applyPreset(preset: 'critical-open' | 'all-open' | 'wcag-131') {
+    if (preset === 'critical-open') {
+      setSeverityFilter('CRITICAL')
+      setStatusFilter('OPEN')
+      setWcagFilter('')
+      return
+    }
+    if (preset === 'all-open') {
+      setSeverityFilter('ALL')
+      setStatusFilter('OPEN')
+      setWcagFilter('')
+      return
+    }
+    setSeverityFilter('ALL')
+    setStatusFilter('ALL')
+    setWcagFilter('1.3.1')
+  }
+
   async function loadProjects() {
     const res = await fetch(`${API}/projects`)
     const data = await res.json()
@@ -153,6 +171,11 @@ export default function App() {
               <option>ALL</option><option>OPEN</option><option>FIXED</option><option>REGRESSED</option><option>WAIVED</option>
             </select>
             <input value={wcagFilter} onChange={(e) => setWcagFilter(e.target.value)} placeholder="WCAG contains (e.g. 1.3.1)" />
+          </div>
+          <div className="row">
+            <button className="ghost" onClick={() => applyPreset('critical-open')}>Preset: Critical + Open</button>
+            <button className="ghost" onClick={() => applyPreset('all-open')}>Preset: All Open</button>
+            <button className="ghost" onClick={() => applyPreset('wcag-131')}>Preset: WCAG 1.3.1</button>
           </div>
           <table>
             <thead>
