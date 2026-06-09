@@ -28,3 +28,16 @@ export function computeDiffUpdates(
   }
   return updates;
 }
+
+/** Groups status updates into id lists so they can be applied as bulk updateMany calls. */
+export function groupStatusUpdates(updates: StatusUpdate[]): {
+  fixedIds: string[];
+  regressedIds: string[];
+} {
+  const fixedIds: string[] = [];
+  const regressedIds: string[] = [];
+  for (const u of updates) {
+    (u.status === 'FIXED' ? fixedIds : regressedIds).push(u.id);
+  }
+  return { fixedIds, regressedIds };
+}

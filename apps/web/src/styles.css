@@ -12,6 +12,8 @@ input, select, textarea, button { background: #0a121c; color: var(--text); borde
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,212,255,.15); }
 button { cursor: pointer; background: #0e7490; border-color: #0891b2; }
 button:hover { background: #0891b2; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:disabled:hover { background: #0e7490; }
 button.ghost { background: transparent; border-color: #30506e; color: #9fd6ea; }
 button.ghost:hover { border-color: var(--accent); color: var(--text); }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -20,5 +22,6 @@ tr.active { background: rgba(0,212,255,.09); }
 tr:hover { background: #13263a; cursor: pointer; }
 .shot { width: 100%; border-radius: 8px; border: 1px solid #2c4b67; margin-bottom: 8px; }
 pre { max-height: 220px; overflow: auto; background: #09121d; padding: 8px; border-radius: 6px; border: 1px solid #223b53; white-space: pre-wrap; }
-.msg { margin-top: 10px; color: #77ddff; }
+.msg { margin-top: 10px; color: #77ddff; min-height: 1.2em; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }

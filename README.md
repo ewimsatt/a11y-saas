@@ -139,10 +139,14 @@ Both run in CI on every push/PR (`.github/workflows/ci.yml`).
 ## API surface
 
 Primary routes:
+- `GET /healthz` - liveness check
 - `GET /projects` - list projects
 - `POST /projects` - create project
+- `GET /projects/:projectId/scans` - list recent scans for project
 - `POST /scans/:projectId/run` - enqueue scan
+- `GET /scans/:id` - scan status (poll until `completed`/`failed`)
 - `GET /scans/:id/issues` - list findings for scan
+- `GET /scans/:id/report?format=pdf|pptx|html` - export audit report (PDF, PowerPoint deck, or HTML preview)
 - `GET /issues/:id/evidence` - get evidence for issue/finding id
 - `POST /issues/:id/waive` - waive issue/finding id
 - `GET /evidence/*` - static evidence files

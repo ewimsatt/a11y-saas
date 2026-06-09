@@ -20,15 +20,16 @@
     "ioredis": "^5.9.3",
     "pg": "^8.18.0",
     "playwright": "^1.58.2",
+    "pptxgenjs": "^4.0.1",
     "prisma": "^7.4.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "vitest": "^3.2.4",
     "@types/node": "^22.10.0",
-    "@types/pg": "^8.15.0"
+    "@types/pg": "^8.15.0",
+    "vitest": "^3.2.4"
   },
   "pnpm": {
     "overrides": {

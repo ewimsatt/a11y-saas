@@ -1,7 +1,8 @@
 import { QUEUES } from '@a11y/shared';
 import { prisma } from '@a11y/db';
-import { crawlPage, analyzePage, stableFingerprint } from '@a11y/scanner';
-import { computeDiffUpdates } from './diff.js';
+import { createBrowserSession, stableFingerprint } from '@a11y/scanner';
+import type { RawViolation } from '@a11y/scanner';
+import { computeDiffUpdates, groupStatusUpdates } from './diff.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import Redis from 'ioredis';
@@ -56,21 +57,33 @@ async function crawlProcessor(job: Job<{ scanId: string }>) {
     });
     const pagesDir = path.join(EVIDENCE_DIR, 'pages');
     await fs.mkdir(pagesDir, { recursive: true });
-    for (const page of scan.pages) {
-      try {
-        const { title, screenshotBuffer } = await crawlPage(page.url);
-        await fs.writeFile(path.join(pagesDir, `${page.id}.png`), screenshotBuffer);
-        await prisma.page.update({
-          where: { id: page.id },
-          data: { title, status: 200 }
-        });
-      } catch (e) {
-        console.error(`Crawl failed for page ${page.id}:`, e);
-        await prisma.page.update({
-          where: { id: page.id },
-          data: { status: 500 }
-        });
+    let crawledCount = 0;
+    const session = await createBrowserSession();
+    try {
+      for (const page of scan.pages) {
+        try {
+          const { title, screenshotBuffer } = await session.crawlPage(page.url);
+          await fs.writeFile(path.join(pagesDir, `${page.id}.png`), screenshotBuffer);
+          await prisma.page.update({
+            where: { id: page.id },
+            data: { title, status: 200 }
+          });
+          crawledCount += 1;
+        } catch (e) {
+          console.error(`Crawl failed for page ${page.id}:`, e);
+          await prisma.page.update({
+            where: { id: page.id },
+            data: { status: 500 }
+          });
+        }
       }
+    } finally {
+      await session.close();
+    }
+    if (scan.pages.length > 0 && crawledCount === 0) {
+      console.error(`All ${scan.pages.length} pages failed to crawl for scan ${scanId}`);
+      await markScanFailed(scanId);
+      return;
     }
     await analyzeQueue.add(
       QUEUES.analyze,
@@ -84,6 +97,81 @@ async function crawlProcessor(job: Job<{ scanId: string }>) {
   }
 }
 
+type FindingRow = {
+  scanId: string;
+  pageId: string;
+  ruleId: string;
+  severity: Severity;
+  fingerprint: string;
+  selector: string | undefined;
+  message: string;
+};
+
+async function persistPageViolations(
+  page: { id: string; scanId: string; url: string; title: string | null },
+  violations: RawViolation[]
+) {
+  // Upsert each distinct rule once, then bulk-insert findings and evidence.
+  const ruleById = new Map(violations.map((v) => [v.ruleId, v]));
+  for (const [ruleId, v] of ruleById) {
+    await prisma.rule.upsert({
+      where: { id: ruleId },
+      create: { id: ruleId, title: v.message, wcagRefs: v.wcagRefs || [] },
+      update: {}
+    });
+  }
+
+  const rowsByFingerprint = new Map<string, { row: FindingRow; violation: RawViolation }>();
+  for (const violation of violations) {
+    const fingerprint = stableFingerprint({
+      ruleId: violation.ruleId,
+      pageUrl: page.url,
+      selector: violation.selector,
+      message: violation.message
+    });
+    if (rowsByFingerprint.has(fingerprint)) continue;
+    rowsByFingerprint.set(fingerprint, {
+      violation,
+      row: {
+        scanId: page.scanId,
+        pageId: page.id,
+        ruleId: violation.ruleId,
+        severity: SEVERITY_BY_IMPACT[violation.impact ?? ''] ?? 'MODERATE',
+        fingerprint,
+        selector: violation.selector,
+        message: violation.message
+      }
+    });
+  }
+  if (rowsByFingerprint.size === 0) return;
+
+  // skipDuplicates makes re-runs idempotent: findings from a previous attempt
+  // are left untouched and get no duplicate evidence rows.
+  const created = await prisma.finding.createManyAndReturn({
+    data: [...rowsByFingerprint.values()].map((e) => e.row),
+    skipDuplicates: true,
+    select: { id: true, fingerprint: true }
+  });
+  if (created.length === 0) return;
+
+  await prisma.evidence.createMany({
+    data: created.map((finding) => {
+      const violation = rowsByFingerprint.get(finding.fingerprint)?.violation;
+      return {
+        findingId: finding.id,
+        screenshot: `pages/${page.id}.png`,
+        domSnippet: violation?.domSnippet ?? '',
+        meta: {
+          title: page.title,
+          url: page.url,
+          ...(violation?.failureSummary && { failureSummary: violation.failureSummary })
+        }
+      };
+    }),
+    skipDuplicates: true
+  });
+}
+
 async function analyzeProcessor(job: Job<{ scanId: string }>) {
   const { scanId } = job.data;
   try {
@@ -95,59 +183,19 @@ async function analyzeProcessor(job: Job<{ scanId: string }>) {
       where: { id: scanId },
       include: { pages: true }
     });
-    for (const page of scan.pages) {
-      if (page.status !== 200) continue; // crawl failed; nothing to analyze
-      try {
-        const violations = await analyzePage(page.url);
-        for (const violation of violations) {
-          const fingerprint = stableFingerprint({
-            ruleId: violation.ruleId,
-            pageUrl: page.url,
-            selector: violation.selector,
-            message: violation.message
-          });
-          const existing = await prisma.finding.findUnique({
-            where: {
-              scan_fingerprint: { scanId: page.scanId, fingerprint }
-            }
-          });
-          if (existing) continue;
-          const severity = SEVERITY_BY_IMPACT[violation.impact ?? ''] ?? 'MODERATE';
-          await prisma.rule.upsert({
-            where: { id: violation.ruleId },
-            create: {
-              id: violation.ruleId,
-              title: violation.message,
-              wcagRefs: violation.wcagRefs || []
-            },
-            update: {}
-          });
-          const finding = await prisma.finding.create({
-            data: {
-              scanId: page.scanId,
-              pageId: page.id,
-              ruleId: violation.ruleId,
-              severity,
-              fingerprint,
-              selector: violation.selector,
-              message: violation.message
-            }
-          });
-          await prisma.evidence.create({
-            data: {
-              findingId: finding.id,
-              screenshot: `pages/${page.id}.png`,
-              domSnippet: '',
-              meta: {
-                title: page.title,
-                url: page.url
-              }
-            }
-          });
+    const session = await createBrowserSession();
+    try {
+      for (const page of scan.pages) {
+        if (page.status !== 200) continue; // crawl failed; nothing to analyze
+        try {
+          const violations = await session.analyzePage(page.url);
+          await persistPageViolations(page, violations);
+        } catch (e) {
+          console.error(`Analyze failed for page ${page.id}:`, e);
         }
-      } catch (e) {
-        console.error(`Analyze failed for page ${page.id}:`, e);
       }
+    } finally {
+      await session.close();
     }
     await diffQueue.add(
       QUEUES.diff,
@@ -189,13 +237,17 @@ async function diffProcessor(job: Job<{ scanId: string }>) {
         where: { scanId },
         select: { id: true, fingerprint: true }
       });
-      const updates = computeDiffUpdates(prevFindings, newFindings);
-      for (const update of updates) {
-        await prisma.finding.update({
-          where: { id: update.id },
-          data: { status: update.status }
-        });
-      }
+      const { fixedIds, regressedIds } = groupStatusUpdates(
+        computeDiffUpdates(prevFindings, newFindings)
+      );
+      await prisma.$transaction([
+        ...(fixedIds.length
+          ? [prisma.finding.updateMany({ where: { id: { in: fixedIds } }, data: { status: 'FIXED' } })]
+          : []),
+        ...(regressedIds.length
+          ? [prisma.finding.updateMany({ where: { id: { in: regressedIds } }, data: { status: 'REGRESSED' } })]
+          : [])
+      ]);
     }
     await evidenceQueue.add(
       QUEUES.evidence,
@@ -229,7 +281,10 @@ const analyzeWorker = new Worker(QUEUES.analyze, analyzeProcessor, { connection 
 const diffWorker = new Worker(QUEUES.diff, diffProcessor, { connection });
 const evidenceWorker = new Worker(QUEUES.evidence, evidenceProcessor, { connection });
 
+let shuttingDown = false;
 async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
   console.log('Shutting down workers...');
   await Promise.all([
     crawlWorker.close(),
@@ -241,6 +296,7 @@ async function shutdown() {
     evidenceQueue.close()
   ]);
   await connection.quit();
+  await prisma.$disconnect();
   process.exit(0);
 }
 

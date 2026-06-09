@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeDiffUpdates } from '../src/diff.js';
+import { computeDiffUpdates, groupStatusUpdates } from '../src/diff.js';
 
 describe('computeDiffUpdates', () => {
   it('returns no updates when there are no findings', () => {
@@ -54,5 +54,20 @@ describe('computeDiffUpdates', () => {
     expect(updates).toContainEqual({ id: 'n1', status: 'REGRESSED' });
     expect(updates).toContainEqual({ id: 'p1', status: 'FIXED' });
     expect(updates).toHaveLength(2);
+  });
+});
+
+describe('groupStatusUpdates', () => {
+  it('returns empty groups for no updates', () => {
+    expect(groupStatusUpdates([])).toEqual({ fixedIds: [], regressedIds: [] });
+  });
+
+  it('splits updates by status', () => {
+    const groups = groupStatusUpdates([
+      { id: 'a', status: 'FIXED' },
+      { id: 'b', status: 'REGRESSED' },
+      { id: 'c', status: 'FIXED' }
+    ]);
+    expect(groups).toEqual({ fixedIds: ['a', 'c'], regressedIds: ['b'] });
   });
 });

@@ -50,6 +50,33 @@ export async function scanRoutes(app: FastifyInstance) {
     }
   });
 
+  app.get('/projects/:projectId/scans', async (req, reply) => {
+    const { projectId } = req.params as { projectId: string };
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) {
+      return reply.code(404).send({ error: 'Project not found' });
+    }
+    const scans = await prisma.scan.findMany({
+      where: { projectId },
+      orderBy: { startedAt: 'desc' },
+      take: 20,
+      include: { _count: { select: { findings: true, pages: true } } }
+    });
+    return { projectId, scans };
+  });
+
+  app.get('/scans/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const scan = await prisma.scan.findUnique({
+      where: { id },
+      include: { _count: { select: { findings: true, pages: true } } }
+    });
+    if (!scan) {
+      return reply.code(404).send({ error: 'Scan not found' });
+    }
+    return scan;
+  });
+
   app.get('/scans/:id/issues', async (req) => {
     const { id } = req.params as { id: string };
     const issues = await prisma.finding.findMany({

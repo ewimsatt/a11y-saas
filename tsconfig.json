@@ -21,6 +21,7 @@
   },
   "include": [
     "apps/api/src",
+    "apps/api/test",
     "apps/worker/src",
     "apps/worker/test",
     "packages/scanner/src",

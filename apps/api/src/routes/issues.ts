@@ -17,13 +17,15 @@ async function getEvidence(req: FastifyRequest, reply: FastifyReply) {
   if (!finding?.evidence) {
     return reply.code(404).send({ error: 'Evidence not found' });
   }
+  const evidenceMeta = (finding.evidence.meta ?? {}) as { failureSummary?: string };
   return {
     issueId: id,
     screenshot: `/evidence/${finding.evidence.screenshot}`,
     domSnippet: finding.evidence.domSnippet,
     meta: {
       title: finding.page?.title,
-      url: finding.page?.url
+      url: finding.page?.url,
+      ...(evidenceMeta.failureSummary && { failureSummary: evidenceMeta.failureSummary })
     }
   };
 }
