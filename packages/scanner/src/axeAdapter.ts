@@ -69,13 +69,16 @@ export async function createBrowserSession(): Promise<BrowserSession> {
   const { chromium } = await import('playwright');
   const browser = await chromium.launch({ headless: true });
 
+  // @axe-core/playwright requires pages from an explicit context
+  // (browser.newPage()'s implicit context is rejected by AxeBuilder).
   async function withPage<T>(url: string, fn: (page: import('playwright').Page) => Promise<T>): Promise<T> {
-    const page = await browser.newPage();
+    const context = await browser.newContext();
     try {
+      const page = await context.newPage();
       await page.goto(url, NAV_OPTIONS);
       return await fn(page);
     } finally {
-      await page.close();
+      await context.close();
     }
   }
 

@@ -168,7 +168,7 @@ export async function buildReportData(scanId: string): Promise<ReportData | null
     },
     score: computeScore(reportFindings),
     grade: scoreGrade(computeScore(reportFindings)),
-    topRules: summarizeRules(reportFindings).slice(0, 10),
+    topRules: summarizeRules(findings).slice(0, 10),
     findingsBySeverity,
     pages,
     comparison
