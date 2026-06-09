@@ -9,7 +9,7 @@ const sample = [
 export default function HomePage() {
   return (
     <main>
-      <h1>Issues > Accessibility</h1>
+      <h1>Issues &gt; Accessibility</h1>
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
         <IssuesTable issues={[...sample] as any} />
         <EvidencePanel />

@@ -7,6 +7,7 @@
     "start": "tsx src/index.ts"
   },
   "dependencies": {
-    "@a11y/db": "workspace:*"
+    "@a11y/db": "workspace:*",
+    "@a11y/shared": "workspace:*"
   }
 }

@@ -1,1 +1,8 @@
-{ "name": "@a11y/shared", "private": true, "type": "module" }
+{
+  "name": "@a11y/shared",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

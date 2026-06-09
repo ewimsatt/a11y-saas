@@ -2,7 +2,8 @@
 
 export type RawViolation = {
   ruleId: string;
-  impact: 'critical' | 'serious' | 'moderate' | 'minor';
+  // axe-core can return null impact for some rules; consumers must handle it.
+  impact: 'critical' | 'serious' | 'moderate' | 'minor' | null;
   message: string;
   selector?: string;
   wcagRefs?: string[];
@@ -15,57 +16,70 @@ export type ScanResult = {
   title: string;
 };
 
-export async function scanPage(url: string): Promise<ScanResult> {
-  const { chromium } = await import('playwright');
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
-  const title = await page.title();
-  const axeResults = await (await import('@axe-core/playwright')).AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa'])
-    .analyze();
-  const screenshotBuffer = await page.screenshot({ fullPage: true });
-  const html = await page.content();
-  await page.close();
-  await browser.close();
-  const violations: RawViolation[] = axeResults.violations.map((v) => ({
+const NAV_OPTIONS = { waitUntil: 'networkidle', timeout: 30000 } as const;
+
+type AxeViolation = {
+  id: string;
+  impact?: string | null;
+  description: string;
+  tags?: string[];
+  nodes: Array<{ target?: Array<string | string[]> }>;
+};
+
+function toRawViolations(violations: AxeViolation[]): RawViolation[] {
+  return violations.map((v) => ({
     ruleId: v.id,
-    impact: v.impact as 'critical' | 'serious' | 'moderate' | 'minor',
+    impact: (v.impact ?? null) as RawViolation['impact'],
     message: v.description,
-    selector: v.nodes[0]?.target?.join(' >> ') || undefined,
-    wcagRefs: v.tags?.filter((t) => t.startsWith('wcag')) || [],
+    selector: v.nodes[0]?.target?.flat().join(' >> ') || undefined,
+    wcagRefs: v.tags?.filter((t) => t.startsWith('wcag')) || []
   }));
-  return { violations, html, screenshotBuffer, title };
 }
 
-export async function crawlPage(url: string): Promise<{title: string; screenshotBuffer: Buffer}> {
+async function withPage<T>(url: string, fn: (page: import('playwright').Page) => Promise<T>): Promise<T> {
   const { chromium } = await import('playwright');
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
-  const title = await page.title();
-  const screenshotBuffer = await page.screenshot({ fullPage: true });
-  await page.close();
-  await browser.close();
-  return { title, screenshotBuffer };
+  try {
+    const page = await browser.newPage();
+    await page.goto(url, NAV_OPTIONS);
+    return await fn(page);
+  } finally {
+    await browser.close();
+  }
+}
+
+async function runAxe(page: import('playwright').Page) {
+  const { AxeBuilder } = await import('@axe-core/playwright');
+  return new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+}
+
+/** Crawl + analyze in a single browser session. */
+export async function scanPage(url: string): Promise<ScanResult> {
+  return withPage(url, async (page) => {
+    const title = await page.title();
+    const axeResults = await runAxe(page);
+    const screenshotBuffer = await page.screenshot({ fullPage: true });
+    const html = await page.content();
+    return {
+      violations: toRawViolations(axeResults.violations as AxeViolation[]),
+      html,
+      screenshotBuffer,
+      title
+    };
+  });
+}
+
+export async function crawlPage(url: string): Promise<{ title: string; screenshotBuffer: Buffer }> {
+  return withPage(url, async (page) => {
+    const title = await page.title();
+    const screenshotBuffer = await page.screenshot({ fullPage: true });
+    return { title, screenshotBuffer };
+  });
 }
 
 export async function analyzePage(url: string): Promise<RawViolation[]> {
-  const { chromium } = await import('playwright');
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
-  const axeResults = await (await import('@axe-core/playwright')).AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa'])
-    .analyze();
-  await page.close();
-  await browser.close();
-  const violations: RawViolation[] = axeResults.violations.map((v) => ({
-    ruleId: v.id,
-    impact: v.impact as 'critical' | 'serious' | 'moderate' | 'minor',
-    message: v.description,
-    selector: v.nodes[0]?.target?.join(' >> ') || undefined,
-    wcagRefs: v.tags?.filter((t) => t.startsWith('wcag')) || [],
-  }));
-  return violations;
+  return withPage(url, async (page) => {
+    const axeResults = await runAxe(page);
+    return toRawViolations(axeResults.violations as AxeViolation[]);
+  });
 }

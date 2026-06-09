@@ -74,6 +74,8 @@ pnpm install
 cp .env.example .env
 ```
 
+`.env.example` matches the host ports published by `docker-compose.yml` (Postgres on `5433`, Redis on `6380`).
+
 ### 4) Prepare database
 
 ```bash
@@ -123,6 +125,15 @@ curl -s "http://localhost:3001/scans/$SCAN_ID/issues" | jq
 
 Run `scripts/smoke.sh` (requires `jq`, assumes API+worker running).
 
+## Checks
+
+```bash
+pnpm typecheck   # strict TypeScript check across apps + packages
+pnpm test        # unit tests (vitest)
+```
+
+Both run in CI on every push/PR (`.github/workflows/ci.yml`).
+
 ---
 
 ## API surface
@@ -156,6 +167,7 @@ Legacy root aliases supported: `GET/POST /`, `/:id/evidence`, `/:id/waive`.
 - [ ] Complete evidence API + object storage support
 - [ ] Finish web Issues UI (filters, evidence pane, waivers)
 - [ ] Add auth and multi-tenant boundaries
+- [x] CI typecheck + unit tests
 - [ ] CI smoke test for first-scan flow
 
 ---

@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@a11y/db": "workspace:*",
-    "@a11y/scanner": "workspace:*"
+    "@a11y/scanner": "workspace:*",
+    "@a11y/shared": "workspace:*"
   }
 }

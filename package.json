@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "scripts": {
     "dev": "echo 'Run app-specific dev scripts'",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "@axe-core/playwright": "^4.11.1",
@@ -22,5 +24,15 @@
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.15.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "ioredis": "^5.9.3"
+    }
   }
 }
