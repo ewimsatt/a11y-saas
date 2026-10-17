@@ -56,25 +56,31 @@ Core flow:
 
 ## Quickstart (local)
 
-### 1) Start infrastructure
+### 1) Configure local credentials
+
+```bash
+cp .env.example .env
+# Set every empty value in .env to unique local credentials.
+# A suitable URL-safe password can be generated with: openssl rand -hex 32
+# Set DATABASE_URL using the configured POSTGRES_USER and POSTGRES_PASSWORD.
+```
+
+The Compose services bind only to `127.0.0.1` and will refuse to start until the
+Postgres and MinIO credentials are explicitly configured. Do not reuse the
+example placeholders. This alpha is local-only: CORS restricts browser origins
+but is not authentication, and shared/public hosting remains unsupported.
+
+### 2) Start infrastructure
 
 ```bash
 docker compose up -d
 ```
 
-### 2) Install dependencies
+### 3) Install dependencies
 
 ```bash
 pnpm install
 ```
-
-### 3) Configure env
-
-```bash
-cp .env.example .env
-```
-
-`.env.example` matches the host ports published by `docker-compose.yml` (Postgres on `5433`, Redis on `6380`).
 
 ### 4) Prepare database
 

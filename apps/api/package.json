@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts"
+    "dev": "if [ -f ../../.env ]; then node --env-file=../../.env ../../node_modules/tsx/dist/cli.mjs watch src/index.ts; else node ../../node_modules/tsx/dist/cli.mjs watch src/index.ts; fi",
+    "start": "if [ -f ../../.env ]; then node --env-file=../../.env ../../node_modules/tsx/dist/cli.mjs src/index.ts; else node ../../node_modules/tsx/dist/cli.mjs src/index.ts; fi"
   },
   "dependencies": {
     "@a11y/db": "workspace:*",
