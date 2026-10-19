@@ -906,6 +906,7 @@ export const ScanScalarFieldEnum = {
   id: 'id',
   projectId: 'projectId',
   status: 'status',
+  coverage: 'coverage',
   startedAt: 'startedAt',
   completedAt: 'completedAt'
 } as const
@@ -918,7 +919,9 @@ export const PageScalarFieldEnum = {
   scanId: 'scanId',
   url: 'url',
   title: 'title',
-  status: 'status'
+  status: 'status',
+  outcome: 'outcome',
+  error: 'error'
 } as const
 
 export type PageScalarFieldEnum = (typeof PageScalarFieldEnum)[keyof typeof PageScalarFieldEnum]
@@ -1013,112 +1016,140 @@ export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof Json
  * Reference to a field of type 'String'
  */
 export type StringFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'String'>
-    
+
 
 
 /**
  * Reference to a field of type 'String[]'
  */
 export type ListStringFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'String[]'>
-    
+
 
 
 /**
  * Reference to a field of type 'DateTime'
  */
 export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
-    
+
 
 
 /**
  * Reference to a field of type 'DateTime[]'
  */
 export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
-    
+
 
 
 /**
  * Reference to a field of type 'ScanStatus'
  */
 export type EnumScanStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScanStatus'>
-    
+
 
 
 /**
  * Reference to a field of type 'ScanStatus[]'
  */
 export type ListEnumScanStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScanStatus[]'>
-    
+
+
+
+/**
+ * Reference to a field of type 'ScanCoverage'
+ */
+export type EnumScanCoverageFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScanCoverage'>
+
+
+
+/**
+ * Reference to a field of type 'ScanCoverage[]'
+ */
+export type ListEnumScanCoverageFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScanCoverage[]'>
+
 
 
 /**
  * Reference to a field of type 'Int'
  */
 export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
-    
+
 
 
 /**
  * Reference to a field of type 'Int[]'
  */
 export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
-    
+
+
+
+/**
+ * Reference to a field of type 'PageOutcome'
+ */
+export type EnumPageOutcomeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PageOutcome'>
+
+
+
+/**
+ * Reference to a field of type 'PageOutcome[]'
+ */
+export type ListEnumPageOutcomeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PageOutcome[]'>
+
 
 
 /**
  * Reference to a field of type 'Severity'
  */
 export type EnumSeverityFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Severity'>
-    
+
 
 
 /**
  * Reference to a field of type 'Severity[]'
  */
 export type ListEnumSeverityFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Severity[]'>
-    
+
 
 
 /**
  * Reference to a field of type 'FindingStatus'
  */
 export type EnumFindingStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'FindingStatus'>
-    
+
 
 
 /**
  * Reference to a field of type 'FindingStatus[]'
  */
 export type ListEnumFindingStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'FindingStatus[]'>
-    
+
 
 
 /**
  * Reference to a field of type 'Json'
  */
 export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
-    
+
 
 
 /**
  * Reference to a field of type 'QueryMode'
  */
 export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
-    
+
 
 
 /**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
-    
+
 
 
 /**
  * Reference to a field of type 'Float[]'
  */
 export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
-    
+
 
 /**
  * Batch Payload for updateMany & deleteMany & createMany

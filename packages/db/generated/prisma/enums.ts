@@ -23,6 +23,25 @@ export const ScanStatus = {
 export type ScanStatus = (typeof ScanStatus)[keyof typeof ScanStatus]
 
 
+export const ScanCoverage = {
+  PENDING: 'PENDING',
+  COMPLETE: 'COMPLETE',
+  PARTIAL: 'PARTIAL',
+  FAILED: 'FAILED'
+} as const
+
+export type ScanCoverage = (typeof ScanCoverage)[keyof typeof ScanCoverage]
+
+
+export const PageOutcome = {
+  PENDING: 'PENDING',
+  ANALYZED: 'ANALYZED',
+  FAILED: 'FAILED'
+} as const
+
+export type PageOutcome = (typeof PageOutcome)[keyof typeof PageOutcome]
+
+
 export const Severity = {
   MINOR: 'MINOR',
   MODERATE: 'MODERATE',

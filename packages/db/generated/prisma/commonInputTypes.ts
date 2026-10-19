@@ -79,6 +79,13 @@ export type EnumScanStatusFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumScanStatusFilter<$PrismaModel> | $Enums.ScanStatus
 }
 
+export type EnumScanCoverageFilter<$PrismaModel = never> = {
+  equals?: $Enums.ScanCoverage | Prisma.EnumScanCoverageFieldRefInput<$PrismaModel>
+  in?: $Enums.ScanCoverage[] | Prisma.ListEnumScanCoverageFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ScanCoverage[] | Prisma.ListEnumScanCoverageFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumScanCoverageFilter<$PrismaModel> | $Enums.ScanCoverage
+}
+
 export type DateTimeNullableFilter<$PrismaModel = never> = {
   equals?: Date | string | Prisma.DateTimeFieldRefInput<$PrismaModel> | null
   in?: Date[] | string[] | Prisma.ListDateTimeFieldRefInput<$PrismaModel> | null
@@ -103,6 +110,16 @@ export type EnumScanStatusWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumScanStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumScanStatusFilter<$PrismaModel>
+}
+
+export type EnumScanCoverageWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ScanCoverage | Prisma.EnumScanCoverageFieldRefInput<$PrismaModel>
+  in?: $Enums.ScanCoverage[] | Prisma.ListEnumScanCoverageFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ScanCoverage[] | Prisma.ListEnumScanCoverageFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumScanCoverageWithAggregatesFilter<$PrismaModel> | $Enums.ScanCoverage
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumScanCoverageFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumScanCoverageFilter<$PrismaModel>
 }
 
 export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -145,6 +162,13 @@ export type IntNullableFilter<$PrismaModel = never> = {
   not?: Prisma.NestedIntNullableFilter<$PrismaModel> | number | null
 }
 
+export type EnumPageOutcomeFilter<$PrismaModel = never> = {
+  equals?: $Enums.PageOutcome | Prisma.EnumPageOutcomeFieldRefInput<$PrismaModel>
+  in?: $Enums.PageOutcome[] | Prisma.ListEnumPageOutcomeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.PageOutcome[] | Prisma.ListEnumPageOutcomeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumPageOutcomeFilter<$PrismaModel> | $Enums.PageOutcome
+}
+
 export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
   equals?: string | Prisma.StringFieldRefInput<$PrismaModel> | null
   in?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel> | null
@@ -177,6 +201,16 @@ export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
   _sum?: Prisma.NestedIntNullableFilter<$PrismaModel>
   _min?: Prisma.NestedIntNullableFilter<$PrismaModel>
   _max?: Prisma.NestedIntNullableFilter<$PrismaModel>
+}
+
+export type EnumPageOutcomeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.PageOutcome | Prisma.EnumPageOutcomeFieldRefInput<$PrismaModel>
+  in?: $Enums.PageOutcome[] | Prisma.ListEnumPageOutcomeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.PageOutcome[] | Prisma.ListEnumPageOutcomeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumPageOutcomeWithAggregatesFilter<$PrismaModel> | $Enums.PageOutcome
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumPageOutcomeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumPageOutcomeFilter<$PrismaModel>
 }
 
 export type EnumSeverityFilter<$PrismaModel = never> = {
@@ -338,6 +372,13 @@ export type NestedEnumScanStatusFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumScanStatusFilter<$PrismaModel> | $Enums.ScanStatus
 }
 
+export type NestedEnumScanCoverageFilter<$PrismaModel = never> = {
+  equals?: $Enums.ScanCoverage | Prisma.EnumScanCoverageFieldRefInput<$PrismaModel>
+  in?: $Enums.ScanCoverage[] | Prisma.ListEnumScanCoverageFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ScanCoverage[] | Prisma.ListEnumScanCoverageFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumScanCoverageFilter<$PrismaModel> | $Enums.ScanCoverage
+}
+
 export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
   equals?: Date | string | Prisma.DateTimeFieldRefInput<$PrismaModel> | null
   in?: Date[] | string[] | Prisma.ListDateTimeFieldRefInput<$PrismaModel> | null
@@ -357,6 +398,16 @@ export type NestedEnumScanStatusWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumScanStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumScanStatusFilter<$PrismaModel>
+}
+
+export type NestedEnumScanCoverageWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ScanCoverage | Prisma.EnumScanCoverageFieldRefInput<$PrismaModel>
+  in?: $Enums.ScanCoverage[] | Prisma.ListEnumScanCoverageFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ScanCoverage[] | Prisma.ListEnumScanCoverageFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumScanCoverageWithAggregatesFilter<$PrismaModel> | $Enums.ScanCoverage
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumScanCoverageFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumScanCoverageFilter<$PrismaModel>
 }
 
 export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -396,6 +447,13 @@ export type NestedStringNullableFilter<$PrismaModel = never> = {
   startsWith?: string | Prisma.StringFieldRefInput<$PrismaModel>
   endsWith?: string | Prisma.StringFieldRefInput<$PrismaModel>
   not?: Prisma.NestedStringNullableFilter<$PrismaModel> | string | null
+}
+
+export type NestedEnumPageOutcomeFilter<$PrismaModel = never> = {
+  equals?: $Enums.PageOutcome | Prisma.EnumPageOutcomeFieldRefInput<$PrismaModel>
+  in?: $Enums.PageOutcome[] | Prisma.ListEnumPageOutcomeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.PageOutcome[] | Prisma.ListEnumPageOutcomeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumPageOutcomeFilter<$PrismaModel> | $Enums.PageOutcome
 }
 
 export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -440,6 +498,16 @@ export type NestedFloatNullableFilter<$PrismaModel = never> = {
   gt?: number | Prisma.FloatFieldRefInput<$PrismaModel>
   gte?: number | Prisma.FloatFieldRefInput<$PrismaModel>
   not?: Prisma.NestedFloatNullableFilter<$PrismaModel> | number | null
+}
+
+export type NestedEnumPageOutcomeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.PageOutcome | Prisma.EnumPageOutcomeFieldRefInput<$PrismaModel>
+  in?: $Enums.PageOutcome[] | Prisma.ListEnumPageOutcomeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.PageOutcome[] | Prisma.ListEnumPageOutcomeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumPageOutcomeWithAggregatesFilter<$PrismaModel> | $Enums.PageOutcome
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumPageOutcomeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumPageOutcomeFilter<$PrismaModel>
 }
 
 export type NestedEnumSeverityFilter<$PrismaModel = never> = {

@@ -19,7 +19,17 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Install matching Playwright Chromium and Linux dependencies
+        run: pnpm exec playwright install --with-deps chromium
       - name: Typecheck
         run: pnpm typecheck
       - name: Unit tests
         run: pnpm test
+      - name: Web build
+        run: pnpm --filter @a11y/web build
+      - name: Full-stack owned-fixture acceptance
+        env:
+          DOCKER_HOST: unix:///var/run/docker.sock
+        run: pnpm test:acceptance
+      - name: Rendered console regressions
+        run: pnpm test:ui

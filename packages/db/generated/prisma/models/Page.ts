@@ -40,6 +40,8 @@ export type PageMinAggregateOutputType = {
   url: string | null
   title: string | null
   status: number | null
+  outcome: $Enums.PageOutcome | null
+  error: string | null
 }
 
 export type PageMaxAggregateOutputType = {
@@ -48,6 +50,8 @@ export type PageMaxAggregateOutputType = {
   url: string | null
   title: string | null
   status: number | null
+  outcome: $Enums.PageOutcome | null
+  error: string | null
 }
 
 export type PageCountAggregateOutputType = {
@@ -56,6 +60,8 @@ export type PageCountAggregateOutputType = {
   url: number
   title: number
   status: number
+  outcome: number
+  error: number
   _all: number
 }
 
@@ -74,6 +80,8 @@ export type PageMinAggregateInputType = {
   url?: true
   title?: true
   status?: true
+  outcome?: true
+  error?: true
 }
 
 export type PageMaxAggregateInputType = {
@@ -82,6 +90,8 @@ export type PageMaxAggregateInputType = {
   url?: true
   title?: true
   status?: true
+  outcome?: true
+  error?: true
 }
 
 export type PageCountAggregateInputType = {
@@ -90,6 +100,8 @@ export type PageCountAggregateInputType = {
   url?: true
   title?: true
   status?: true
+  outcome?: true
+  error?: true
   _all?: true
 }
 
@@ -185,6 +197,8 @@ export type PageGroupByOutputType = {
   url: string
   title: string | null
   status: number | null
+  outcome: $Enums.PageOutcome
+  error: string | null
   _count: PageCountAggregateOutputType | null
   _avg: PageAvgAggregateOutputType | null
   _sum: PageSumAggregateOutputType | null
@@ -216,6 +230,8 @@ export type PageWhereInput = {
   url?: Prisma.StringFilter<"Page"> | string
   title?: Prisma.StringNullableFilter<"Page"> | string | null
   status?: Prisma.IntNullableFilter<"Page"> | number | null
+  outcome?: Prisma.EnumPageOutcomeFilter<"Page"> | $Enums.PageOutcome
+  error?: Prisma.StringNullableFilter<"Page"> | string | null
   scan?: Prisma.XOR<Prisma.ScanScalarRelationFilter, Prisma.ScanWhereInput>
   findings?: Prisma.FindingListRelationFilter
 }
@@ -226,6 +242,8 @@ export type PageOrderByWithRelationInput = {
   url?: Prisma.SortOrder
   title?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrderInput | Prisma.SortOrder
+  outcome?: Prisma.SortOrder
+  error?: Prisma.SortOrderInput | Prisma.SortOrder
   scan?: Prisma.ScanOrderByWithRelationInput
   findings?: Prisma.FindingOrderByRelationAggregateInput
 }
@@ -239,6 +257,8 @@ export type PageWhereUniqueInput = Prisma.AtLeast<{
   url?: Prisma.StringFilter<"Page"> | string
   title?: Prisma.StringNullableFilter<"Page"> | string | null
   status?: Prisma.IntNullableFilter<"Page"> | number | null
+  outcome?: Prisma.EnumPageOutcomeFilter<"Page"> | $Enums.PageOutcome
+  error?: Prisma.StringNullableFilter<"Page"> | string | null
   scan?: Prisma.XOR<Prisma.ScanScalarRelationFilter, Prisma.ScanWhereInput>
   findings?: Prisma.FindingListRelationFilter
 }, "id">
@@ -249,6 +269,8 @@ export type PageOrderByWithAggregationInput = {
   url?: Prisma.SortOrder
   title?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrderInput | Prisma.SortOrder
+  outcome?: Prisma.SortOrder
+  error?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.PageCountOrderByAggregateInput
   _avg?: Prisma.PageAvgOrderByAggregateInput
   _max?: Prisma.PageMaxOrderByAggregateInput
@@ -265,6 +287,8 @@ export type PageScalarWhereWithAggregatesInput = {
   url?: Prisma.StringWithAggregatesFilter<"Page"> | string
   title?: Prisma.StringNullableWithAggregatesFilter<"Page"> | string | null
   status?: Prisma.IntNullableWithAggregatesFilter<"Page"> | number | null
+  outcome?: Prisma.EnumPageOutcomeWithAggregatesFilter<"Page"> | $Enums.PageOutcome
+  error?: Prisma.StringNullableWithAggregatesFilter<"Page"> | string | null
 }
 
 export type PageCreateInput = {
@@ -272,6 +296,8 @@ export type PageCreateInput = {
   url: string
   title?: string | null
   status?: number | null
+  outcome?: $Enums.PageOutcome
+  error?: string | null
   scan: Prisma.ScanCreateNestedOneWithoutPagesInput
   findings?: Prisma.FindingCreateNestedManyWithoutPageInput
 }
@@ -282,6 +308,8 @@ export type PageUncheckedCreateInput = {
   url: string
   title?: string | null
   status?: number | null
+  outcome?: $Enums.PageOutcome
+  error?: string | null
   findings?: Prisma.FindingUncheckedCreateNestedManyWithoutPageInput
 }
 
@@ -290,6 +318,8 @@ export type PageUpdateInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outcome?: Prisma.EnumPageOutcomeFieldUpdateOperationsInput | $Enums.PageOutcome
+  error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   scan?: Prisma.ScanUpdateOneRequiredWithoutPagesNestedInput
   findings?: Prisma.FindingUpdateManyWithoutPageNestedInput
 }
@@ -300,6 +330,8 @@ export type PageUncheckedUpdateInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outcome?: Prisma.EnumPageOutcomeFieldUpdateOperationsInput | $Enums.PageOutcome
+  error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   findings?: Prisma.FindingUncheckedUpdateManyWithoutPageNestedInput
 }
 
@@ -309,6 +341,8 @@ export type PageCreateManyInput = {
   url: string
   title?: string | null
   status?: number | null
+  outcome?: $Enums.PageOutcome
+  error?: string | null
 }
 
 export type PageUpdateManyMutationInput = {
@@ -316,6 +350,8 @@ export type PageUpdateManyMutationInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outcome?: Prisma.EnumPageOutcomeFieldUpdateOperationsInput | $Enums.PageOutcome
+  error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PageUncheckedUpdateManyInput = {
@@ -324,6 +360,8 @@ export type PageUncheckedUpdateManyInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outcome?: Prisma.EnumPageOutcomeFieldUpdateOperationsInput | $Enums.PageOutcome
+  error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PageListRelationFilter = {
@@ -342,6 +380,8 @@ export type PageCountOrderByAggregateInput = {
   url?: Prisma.SortOrder
   title?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  outcome?: Prisma.SortOrder
+  error?: Prisma.SortOrder
 }
 
 export type PageAvgOrderByAggregateInput = {
@@ -354,6 +394,8 @@ export type PageMaxOrderByAggregateInput = {
   url?: Prisma.SortOrder
   title?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  outcome?: Prisma.SortOrder
+  error?: Prisma.SortOrder
 }
 
 export type PageMinOrderByAggregateInput = {
@@ -362,6 +404,8 @@ export type PageMinOrderByAggregateInput = {
   url?: Prisma.SortOrder
   title?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  outcome?: Prisma.SortOrder
+  error?: Prisma.SortOrder
 }
 
 export type PageSumOrderByAggregateInput = {
@@ -427,6 +471,10 @@ export type NullableIntFieldUpdateOperationsInput = {
   divide?: number
 }
 
+export type EnumPageOutcomeFieldUpdateOperationsInput = {
+  set?: $Enums.PageOutcome
+}
+
 export type PageCreateNestedOneWithoutFindingsInput = {
   create?: Prisma.XOR<Prisma.PageCreateWithoutFindingsInput, Prisma.PageUncheckedCreateWithoutFindingsInput>
   connectOrCreate?: Prisma.PageCreateOrConnectWithoutFindingsInput
@@ -446,6 +494,8 @@ export type PageCreateWithoutScanInput = {
   url: string
   title?: string | null
   status?: number | null
+  outcome?: $Enums.PageOutcome
+  error?: string | null
   findings?: Prisma.FindingCreateNestedManyWithoutPageInput
 }
 
@@ -454,6 +504,8 @@ export type PageUncheckedCreateWithoutScanInput = {
   url: string
   title?: string | null
   status?: number | null
+  outcome?: $Enums.PageOutcome
+  error?: string | null
   findings?: Prisma.FindingUncheckedCreateNestedManyWithoutPageInput
 }
 
@@ -492,6 +544,8 @@ export type PageScalarWhereInput = {
   url?: Prisma.StringFilter<"Page"> | string
   title?: Prisma.StringNullableFilter<"Page"> | string | null
   status?: Prisma.IntNullableFilter<"Page"> | number | null
+  outcome?: Prisma.EnumPageOutcomeFilter<"Page"> | $Enums.PageOutcome
+  error?: Prisma.StringNullableFilter<"Page"> | string | null
 }
 
 export type PageCreateWithoutFindingsInput = {
@@ -499,6 +553,8 @@ export type PageCreateWithoutFindingsInput = {
   url: string
   title?: string | null
   status?: number | null
+  outcome?: $Enums.PageOutcome
+  error?: string | null
   scan: Prisma.ScanCreateNestedOneWithoutPagesInput
 }
 
@@ -508,6 +564,8 @@ export type PageUncheckedCreateWithoutFindingsInput = {
   url: string
   title?: string | null
   status?: number | null
+  outcome?: $Enums.PageOutcome
+  error?: string | null
 }
 
 export type PageCreateOrConnectWithoutFindingsInput = {
@@ -531,6 +589,8 @@ export type PageUpdateWithoutFindingsInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outcome?: Prisma.EnumPageOutcomeFieldUpdateOperationsInput | $Enums.PageOutcome
+  error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   scan?: Prisma.ScanUpdateOneRequiredWithoutPagesNestedInput
 }
 
@@ -540,6 +600,8 @@ export type PageUncheckedUpdateWithoutFindingsInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outcome?: Prisma.EnumPageOutcomeFieldUpdateOperationsInput | $Enums.PageOutcome
+  error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PageCreateManyScanInput = {
@@ -547,6 +609,8 @@ export type PageCreateManyScanInput = {
   url: string
   title?: string | null
   status?: number | null
+  outcome?: $Enums.PageOutcome
+  error?: string | null
 }
 
 export type PageUpdateWithoutScanInput = {
@@ -554,6 +618,8 @@ export type PageUpdateWithoutScanInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outcome?: Prisma.EnumPageOutcomeFieldUpdateOperationsInput | $Enums.PageOutcome
+  error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   findings?: Prisma.FindingUpdateManyWithoutPageNestedInput
 }
 
@@ -562,6 +628,8 @@ export type PageUncheckedUpdateWithoutScanInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outcome?: Prisma.EnumPageOutcomeFieldUpdateOperationsInput | $Enums.PageOutcome
+  error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   findings?: Prisma.FindingUncheckedUpdateManyWithoutPageNestedInput
 }
 
@@ -570,6 +638,8 @@ export type PageUncheckedUpdateManyWithoutScanInput = {
   url?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  outcome?: Prisma.EnumPageOutcomeFieldUpdateOperationsInput | $Enums.PageOutcome
+  error?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -609,6 +679,8 @@ export type PageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   url?: boolean
   title?: boolean
   status?: boolean
+  outcome?: boolean
+  error?: boolean
   scan?: boolean | Prisma.ScanDefaultArgs<ExtArgs>
   findings?: boolean | Prisma.Page$findingsArgs<ExtArgs>
   _count?: boolean | Prisma.PageCountOutputTypeDefaultArgs<ExtArgs>
@@ -620,6 +692,8 @@ export type PageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   url?: boolean
   title?: boolean
   status?: boolean
+  outcome?: boolean
+  error?: boolean
   scan?: boolean | Prisma.ScanDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["page"]>
 
@@ -629,6 +703,8 @@ export type PageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   url?: boolean
   title?: boolean
   status?: boolean
+  outcome?: boolean
+  error?: boolean
   scan?: boolean | Prisma.ScanDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["page"]>
 
@@ -638,9 +714,11 @@ export type PageSelectScalar = {
   url?: boolean
   title?: boolean
   status?: boolean
+  outcome?: boolean
+  error?: boolean
 }
 
-export type PageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "scanId" | "url" | "title" | "status", ExtArgs["result"]["page"]>
+export type PageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "scanId" | "url" | "title" | "status" | "outcome" | "error", ExtArgs["result"]["page"]>
 export type PageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   scan?: boolean | Prisma.ScanDefaultArgs<ExtArgs>
   findings?: boolean | Prisma.Page$findingsArgs<ExtArgs>
@@ -665,6 +743,8 @@ export type $PagePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     url: string
     title: string | null
     status: number | null
+    outcome: $Enums.PageOutcome
+    error: string | null
   }, ExtArgs["result"]["page"]>
   composites: {}
 }
@@ -1095,6 +1175,8 @@ export interface PageFieldRefs {
   readonly url: Prisma.FieldRef<"Page", 'String'>
   readonly title: Prisma.FieldRef<"Page", 'String'>
   readonly status: Prisma.FieldRef<"Page", 'Int'>
+  readonly outcome: Prisma.FieldRef<"Page", 'PageOutcome'>
+  readonly error: Prisma.FieldRef<"Page", 'String'>
 }
     
 

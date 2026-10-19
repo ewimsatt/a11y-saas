@@ -5,7 +5,10 @@ export type RawViolation = {
   // axe-core can return null impact for some rules; consumers must handle it.
   impact: 'critical' | 'serious' | 'moderate' | 'minor' | null;
   message: string;
+  /** Human-readable rendering only. Do not use as canonical identity. */
   selector?: string;
+  /** Canonical, deterministic serialization of axe's structured target array. */
+  targetIdentity: string;
   wcagRefs?: string[];
   // Outer HTML of the first violating node, as reported by axe.
   domSnippet?: string;
@@ -18,7 +21,15 @@ export type ScanResult = {
   html: string;
   screenshotBuffer: Buffer;
   title: string;
+  responseStatus: number;
 };
+
+export class ScanPageError extends Error {
+  constructor(message: string, readonly responseStatus: number | null = null) {
+    super(message);
+    this.name = 'ScanPageError';
+  }
+}
 
 const NAV_OPTIONS = { waitUntil: 'networkidle', timeout: 30000 } as const;
 
@@ -34,19 +45,28 @@ type AxeViolation = {
   }>;
 };
 
-function toRawViolations(violations: AxeViolation[]): RawViolation[] {
-  return violations.map((v) => {
-    const node = v.nodes[0];
-    return {
+function canonicalTarget(target: Array<string | string[]> | undefined): string {
+  return JSON.stringify(target ?? []);
+}
+
+function displaySelector(target: Array<string | string[]> | undefined): string | undefined {
+  const flattened = target?.flat(Infinity).filter((part): part is string => typeof part === 'string');
+  return flattened?.length ? flattened.join(' >> ') : undefined;
+}
+
+export function toRawViolations(violations: AxeViolation[]): RawViolation[] {
+  return violations.flatMap((v) =>
+    v.nodes.map((node) => ({
       ruleId: v.id,
       impact: (v.impact ?? null) as RawViolation['impact'],
       message: v.description,
-      selector: node?.target?.flat().join(' >> ') || undefined,
+      selector: displaySelector(node.target),
+      targetIdentity: canonicalTarget(node.target),
       wcagRefs: v.tags?.filter((t) => t.startsWith('wcag')) || [],
-      domSnippet: node?.html || undefined,
-      failureSummary: node?.failureSummary || undefined
-    };
-  });
+      domSnippet: node.html || undefined,
+      failureSummary: node.failureSummary || undefined
+    }))
+  );
 }
 
 async function runAxe(page: import('playwright').Page) {
@@ -67,16 +87,24 @@ export type BrowserSession = {
  */
 export async function createBrowserSession(): Promise<BrowserSession> {
   const { chromium } = await import('playwright');
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: true,
+    ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {})
+  });
 
   // @axe-core/playwright requires pages from an explicit context
   // (browser.newPage()'s implicit context is rejected by AxeBuilder).
-  async function withPage<T>(url: string, fn: (page: import('playwright').Page) => Promise<T>): Promise<T> {
+  async function withPage<T>(
+    url: string,
+    fn: (page: import('playwright').Page, response: import('playwright').Response) => Promise<T>
+  ): Promise<T> {
     const context = await browser.newContext();
     try {
       const page = await context.newPage();
-      await page.goto(url, NAV_OPTIONS);
-      return await fn(page);
+      const response = await page.goto(url, NAV_OPTIONS);
+      if (!response) throw new ScanPageError('Navigation returned no HTTP response');
+      if (!response.ok()) throw new ScanPageError(`HTTP ${response.status()} while loading page`, response.status());
+      return await fn(page, response);
     } finally {
       await context.close();
     }
@@ -97,7 +125,7 @@ export async function createBrowserSession(): Promise<BrowserSession> {
       });
     },
     scanPage(url) {
-      return withPage(url, async (page) => {
+      return withPage(url, async (page, response) => {
         const title = await page.title();
         const axeResults = await runAxe(page);
         const screenshotBuffer = await page.screenshot({ fullPage: true });
@@ -106,7 +134,8 @@ export async function createBrowserSession(): Promise<BrowserSession> {
           violations: toRawViolations(axeResults.violations as AxeViolation[]),
           html,
           screenshotBuffer,
-          title
+          title,
+          responseStatus: response.status()
         };
       });
     },

@@ -1,12 +1,13 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { prisma } from '@a11y/db';
+import { publicFailureReason } from '@a11y/shared';
 import { EVIDENCE_DIR } from '../paths';
+import { reportAssessment, type Coverage } from './coverage';
 import {
   countBySeverity,
   countByStatus,
   computeScore,
-  scoreGrade,
   summarizeRules,
   SEVERITY_ORDER,
   type Severity,
@@ -36,21 +37,25 @@ export type ReportPage = {
   url: string;
   title: string | null;
   crawled: boolean;
+  outcome: 'PENDING' | 'ANALYZED' | 'FAILED';
+  responseStatus: number | null;
+  error: string | null;
   findingCount: number;
   screenshotBase64: string | null;
 };
 
 export type ReportData = {
   project: { name: string; baseUrl: string };
-  scan: { id: string; status: string; startedAt: Date | null; completedAt: Date | null };
+  scan: { id: string; status: string; coverage: Coverage; startedAt: Date | null; completedAt: Date | null };
   generatedAt: Date;
+  coverage: { requestedPages: number; analyzedPages: number; failedPages: number; label: string };
   totals: {
     findings: number;
     bySeverity: Record<Severity, number>;
     byStatus: Record<FindingStatus, number>;
   };
-  score: number;
-  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  score: number | null;
+  grade: 'A' | 'B' | 'C' | 'D' | 'F' | null;
   topRules: RuleSummary[];
   findingsBySeverity: Array<{ severity: Severity; findings: ReportFinding[]; omitted: number }>;
   pages: ReportPage[];
@@ -60,6 +65,7 @@ export type ReportData = {
     prevTotal: number;
     fixed: number;
     regressed: number;
+    prevCoverage: Coverage;
   } | null;
 };
 
@@ -122,52 +128,66 @@ export async function buildReportData(scanId: string): Promise<ReportData | null
       id: p.id,
       url: p.url,
       title: p.title,
-      crawled: p.status === 200,
+      crawled: p.outcome === 'ANALYZED',
+      outcome: p.outcome,
+      responseStatus: p.status,
+      error: p.error ? publicFailureReason(p.error) : null,
       findingCount: findingCountByPage.get(p.id) ?? 0,
       screenshotBase64: index < MAX_SCREENSHOT_PAGES ? await loadScreenshot(p.id) : null
     }))
   );
 
-  const prevScan = await prisma.scan.findFirst({
-    where: {
-      projectId: scan.projectId,
-      status: 'completed',
-      completedAt: { lt: scan.startedAt ?? new Date() }
-    },
-    orderBy: { completedAt: 'desc' }
-  });
   let comparison: ReportData['comparison'] = null;
-  if (prevScan) {
-    const [prevTotal, fixed, regressed] = await Promise.all([
-      prisma.finding.count({ where: { scanId: prevScan.id } }),
-      prisma.finding.count({ where: { scanId: prevScan.id, status: 'FIXED' } }),
-      prisma.finding.count({ where: { scanId, status: 'REGRESSED' } })
-    ]);
-    comparison = {
-      prevScanId: prevScan.id,
-      prevCompletedAt: prevScan.completedAt,
-      prevTotal,
-      fixed,
-      regressed
-    };
+  if (scan.coverage === 'COMPLETE') {
+    const prevScan = await prisma.scan.findFirst({
+      where: {
+        projectId: scan.projectId,
+        status: 'completed',
+        coverage: 'COMPLETE',
+        completedAt: { lt: scan.startedAt ?? new Date() }
+      },
+      orderBy: { completedAt: 'desc' }
+    });
+    if (prevScan) {
+      const [prevTotal, fixed, regressed] = await Promise.all([
+        prisma.finding.count({ where: { scanId: prevScan.id } }),
+        prisma.finding.count({ where: { scanId: prevScan.id, status: 'FIXED' } }),
+        prisma.finding.count({ where: { scanId, status: 'REGRESSED' } })
+      ]);
+      comparison = {
+        prevScanId: prevScan.id,
+        prevCompletedAt: prevScan.completedAt,
+        prevTotal,
+        fixed,
+        regressed,
+        prevCoverage: 'COMPLETE'
+      };
+    }
   }
+
+  const rawScore = computeScore(reportFindings);
+  const assessment = reportAssessment(scan.coverage, rawScore);
+  const analyzedPages = scan.pages.filter((page) => page.outcome === 'ANALYZED').length;
+  const failedPages = scan.pages.filter((page) => page.outcome === 'FAILED').length;
 
   return {
     project: { name: scan.project.name, baseUrl: scan.project.baseUrl },
     scan: {
       id: scan.id,
       status: scan.status,
+      coverage: scan.coverage,
       startedAt: scan.startedAt,
       completedAt: scan.completedAt
     },
     generatedAt: new Date(),
+    coverage: { requestedPages: scan.pages.length, analyzedPages, failedPages, label: assessment.label },
     totals: {
       findings: findings.length,
       bySeverity: countBySeverity(reportFindings),
       byStatus: countByStatus(reportFindings)
     },
-    score: computeScore(reportFindings),
-    grade: scoreGrade(computeScore(reportFindings)),
+    score: assessment.score,
+    grade: assessment.grade,
     topRules: summarizeRules(findings).slice(0, 10),
     findingsBySeverity,
     pages,

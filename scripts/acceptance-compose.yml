@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: acceptance
+      POSTGRES_PASSWORD: acceptance-only-not-a-secret
+      POSTGRES_DB: a11y
+    ports:
+      - "127.0.0.1:${ACCEPTANCE_POSTGRES_PORT}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acceptance -d a11y"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis:7
+    ports:
+      - "127.0.0.1:${ACCEPTANCE_REDIS_PORT}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

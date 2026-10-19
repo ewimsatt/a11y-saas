@@ -55,6 +55,9 @@ export function checkScanTargetUrl(raw: string): UrlCheckResult {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     return { ok: false, reason: 'Only http(s) URLs can be scanned' };
   }
+  if (url.username || url.password) {
+    return { ok: false, reason: 'URLs with credentials cannot be scanned' };
+  }
   const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (BLOCKED_HOSTNAMES.has(hostname)) {
     return { ok: false, reason: 'Loopback addresses cannot be scanned' };

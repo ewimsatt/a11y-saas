@@ -89,6 +89,7 @@ export const ScanScalarFieldEnum = {
   id: 'id',
   projectId: 'projectId',
   status: 'status',
+  coverage: 'coverage',
   startedAt: 'startedAt',
   completedAt: 'completedAt'
 } as const
@@ -101,7 +102,9 @@ export const PageScalarFieldEnum = {
   scanId: 'scanId',
   url: 'url',
   title: 'title',
-  status: 'status'
+  status: 'status',
+  outcome: 'outcome',
+  error: 'error'
 } as const
 
 export type PageScalarFieldEnum = (typeof PageScalarFieldEnum)[keyof typeof PageScalarFieldEnum]

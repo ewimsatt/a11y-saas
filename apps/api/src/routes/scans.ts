@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '@a11y/db';
 import { z } from 'zod';
-import { QUEUES, checkScanTargetUrl } from '@a11y/shared';
+import { QUEUES, checkScanTargetUrl, publicFailureReason } from '@a11y/shared';
 import { getCrawlQueue } from '../lib/queues';
 import { errorMessage } from '../lib/errors';
 
@@ -69,12 +69,18 @@ export async function scanRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const scan = await prisma.scan.findUnique({
       where: { id },
-      include: { _count: { select: { findings: true, pages: true } } }
+      include: {
+        pages: { orderBy: { url: 'asc' } },
+        _count: { select: { findings: true, pages: true } }
+      }
     });
     if (!scan) {
       return reply.code(404).send({ error: 'Scan not found' });
     }
-    return scan;
+    return {
+      ...scan,
+      pages: scan.pages.map((page) => ({ ...page, error: page.error ? publicFailureReason(page.error) : null }))
+    };
   });
 
   app.get('/scans/:id/issues', async (req) => {

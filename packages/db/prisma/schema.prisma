@@ -19,6 +19,7 @@ model Scan {
   id          String     @id @default(cuid())
   projectId   String
   status      ScanStatus @default(pending)
+  coverage    ScanCoverage @default(PENDING)
   startedAt   DateTime?
   completedAt DateTime?
   pages       Page[]
@@ -34,6 +35,8 @@ model Page {
   url      String    @db.VarChar(1000)
   title    String?
   status   Int?
+  outcome  PageOutcome @default(PENDING)
+  error    String?
   scan     Scan      @relation(fields: [scanId], references: [id], onDelete: Cascade)
   findings Finding[]
 
@@ -86,6 +89,19 @@ enum ScanStatus {
   evidence
   completed
   failed
+}
+
+enum ScanCoverage {
+  PENDING
+  COMPLETE
+  PARTIAL
+  FAILED
+}
+
+enum PageOutcome {
+  PENDING
+  ANALYZED
+  FAILED
 }
 
 enum Severity {

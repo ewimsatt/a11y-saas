@@ -6,7 +6,9 @@
     "dev": "echo 'Run app-specific dev scripts'",
     "seed": "node scripts/seed.js",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+  "test:acceptance": "scripts/full-stack-acceptance.sh",
+  "test:ui": "pnpm --filter @a11y/web build && node scripts/ui-acceptance.mjs"
   },
   "dependencies": {
     "@axe-core/playwright": "^4.11.1",
