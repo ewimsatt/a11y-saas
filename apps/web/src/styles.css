@@ -9,7 +9,7 @@ header p { margin: 0 0 16px; color: var(--muted); }
 .row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
 input, select, textarea, button { background: #0a121c; color: var(--text); border: 1px solid #29435c; border-radius: 6px; padding: 8px; }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,212,255,.15); }
+input:focus, select:focus, textarea:focus, button:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,212,255,.15); }
 button { cursor: pointer; background: #0e7490; border-color: #0891b2; }
 button:hover { background: #0891b2; }
 button:disabled { opacity: .45; cursor: not-allowed; }

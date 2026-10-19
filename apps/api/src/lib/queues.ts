@@ -8,10 +8,15 @@ import { QUEUES } from '@a11y/shared';
 let connection: Redis | undefined;
 let crawlQueue: Queue | undefined;
 
+function queueOptions(activeConnection: Redis) {
+  const prefix = process.env.BULLMQ_PREFIX;
+  return prefix ? { connection: activeConnection, prefix } : { connection: activeConnection };
+}
+
 export function getCrawlQueue(): Queue {
   if (!crawlQueue) {
     connection = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379');
-    crawlQueue = new Queue(QUEUES.crawl, { connection });
+    crawlQueue = new Queue(QUEUES.crawl, queueOptions(connection));
   }
   return crawlQueue;
 }

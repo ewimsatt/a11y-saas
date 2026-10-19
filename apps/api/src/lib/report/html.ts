@@ -1,4 +1,5 @@
 import type { ReportData, ReportFinding } from './data';
+import { publicFailureReason } from '@a11y/shared';
 import { SEVERITY_ORDER, STATUS_ORDER, type Severity } from './stats';
 
 const SEVERITY_COLORS: Record<Severity, string> = {
@@ -72,6 +73,11 @@ function findingCard(f: ReportFinding): string {
 
 export function renderReportHtml(data: ReportData): string {
   const { totals } = data;
+  const complete = data.scan.coverage === 'COMPLETE';
+  const score = complete ? data.score : null;
+  const grade = complete ? data.grade : null;
+  const comparison = complete && data.comparison?.prevCoverage === 'COMPLETE' ? data.comparison : null;
+  const coverageMessage = `${data.scan.coverage} coverage: ${data.coverage.analyzedPages}/${data.coverage.requestedPages} requested pages were analyzed${data.coverage.failedPages ? `; ${data.coverage.failedPages} failed` : ''}. Findings and totals are not a complete audit, so no score or grade is issued.`;
   const severityEntries = SEVERITY_ORDER.map((s) => ({
     label: s,
     count: totals.bySeverity[s],
@@ -83,16 +89,16 @@ export function renderReportHtml(data: ReportData): string {
     color: STATUS_COLORS[s] ?? '#64748b'
   }));
 
-  const comparisonSection = data.comparison
+  const comparisonSection = comparison
     ? `
   <section class="section">
     <h2>Change Since Previous Scan</h2>
     <div class="kpis kpis-3">
-      <div class="kpi"><div class="kpi-value good">${data.comparison.fixed}</div><div class="kpi-label">Fixed</div></div>
-      <div class="kpi"><div class="kpi-value bad">${data.comparison.regressed}</div><div class="kpi-label">Regressed</div></div>
-      <div class="kpi"><div class="kpi-value">${data.comparison.prevTotal} → ${totals.findings}</div><div class="kpi-label">Total findings</div></div>
+      <div class="kpi"><div class="kpi-value good">${comparison.fixed}</div><div class="kpi-label">Fixed</div></div>
+      <div class="kpi"><div class="kpi-value bad">${comparison.regressed}</div><div class="kpi-label">Regressed</div></div>
+      <div class="kpi"><div class="kpi-value">${comparison.prevTotal} → ${totals.findings}</div><div class="kpi-label">Total findings</div></div>
     </div>
-    <p class="muted">Compared against the scan completed ${fmtDate(data.comparison.prevCompletedAt)}.</p>
+    <p class="muted">Compared against the scan completed ${fmtDate(comparison.prevCompletedAt)}.</p>
   </section>`
     : '';
 
@@ -146,6 +152,7 @@ export function renderReportHtml(data: ReportData): string {
   .snippet { background:#f8fafc; border:1px solid var(--line); border-radius:6px; padding:8px 10px; font-size:12px; overflow-wrap:anywhere; white-space:pre-wrap; margin:0; }
   .muted { color: var(--muted); font-size: 13px; }
   .omitted { color: var(--muted); font-style: italic; margin: 4px 0 16px; }
+  .coverage-warning { border: 2px solid #b45309; background: #fffbeb; color: #78350f; padding: 12px 14px; border-radius: 8px; font-weight: 600; }
   .shots { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
   .shot-card { border:1px solid var(--line); border-radius:10px; overflow:hidden; break-inside: avoid; }
   .shot-card img { width:100%; max-height:300px; object-fit:cover; object-position:top; display:block; }
@@ -168,15 +175,16 @@ export function renderReportHtml(data: ReportData): string {
     <div class="cover-meta">
       <div><strong>${fmtDate(data.scan.startedAt)}</strong>Scan started</div>
       <div><strong>${fmtDate(data.scan.completedAt)}</strong>Scan completed</div>
-      <div><strong>${esc(data.scan.status)}</strong>Scan status</div>
+      <div><strong>${esc(data.scan.status)} · ${data.scan.coverage}</strong>Scan status and coverage</div>
       <div><strong>${fmtDate(data.generatedAt)}</strong>Report generated</div>
     </div>
   </header>
 
   <section class="section">
     <h2>Executive Summary</h2>
+    ${!complete ? `<p class="coverage-warning">${esc(coverageMessage)}</p>` : ''}
     <div class="kpis">
-      <div class="kpi"><div class="score-ring">${data.score}</div><div class="kpi-label">Score <span class="grade">(${data.grade})</span></div></div>
+      <div class="kpi"><div class="score-ring">${score ?? '—'}</div><div class="kpi-label">Score <span class="grade">${grade ? `(${grade})` : '(not graded)'}</span></div></div>
       <div class="kpi"><div class="kpi-value">${totals.findings}</div><div class="kpi-label">Total findings</div></div>
       <div class="kpi"><div class="kpi-value bad">${totals.bySeverity.CRITICAL}</div><div class="kpi-label">Critical</div></div>
       <div class="kpi"><div class="kpi-value">${totals.byStatus.OPEN + totals.byStatus.REGRESSED}</div><div class="kpi-label">Needs action</div></div>
@@ -232,15 +240,17 @@ export function renderReportHtml(data: ReportData): string {
   <section class="section">
     <h2>Pages</h2>
     <table>
-      <thead><tr><th>URL</th><th>Title</th><th>Crawled</th><th>Findings</th></tr></thead>
+      <thead><tr><th>URL</th><th>Title</th><th>Outcome</th><th>HTTP status</th><th>Findings</th><th>Details</th></tr></thead>
       <tbody>
         ${data.pages
           .map(
             (p) => `<tr>
           <td>${esc(p.url)}</td>
           <td>${esc(p.title ?? '—')}</td>
-          <td>${p.crawled ? 'Yes' : 'Failed'}</td>
+          <td>${esc(p.outcome)}</td>
+          <td>${p.responseStatus ?? '—'}</td>
           <td>${p.findingCount}</td>
+          <td>${esc(p.error ? publicFailureReason(p.error) : '—')}</td>
         </tr>`
           )
           .join('')}

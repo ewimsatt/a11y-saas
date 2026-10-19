@@ -1,7 +1,8 @@
-import { QUEUES } from '@a11y/shared';
+import { QUEUES, publicFailureReason } from '@a11y/shared';
 import { prisma } from '@a11y/db';
-import { createBrowserSession, stableFingerprint } from '@a11y/scanner';
+import { createBrowserSession, ScanPageError, stableFingerprint } from '@a11y/scanner';
 import type { RawViolation } from '@a11y/scanner';
+import { decideScanOutcome } from './scanOutcome.js';
 import { computeDiffUpdates, groupStatusUpdates } from './diff.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -15,15 +16,17 @@ console.log('Queues:', Object.values(QUEUES).join(', '));
 const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
 // BullMQ workers require maxRetriesPerRequest: null on their blocking connection.
 const connection = new Redis(redisUrl, { maxRetriesPerRequest: null });
+const bullmqPrefix = process.env.BULLMQ_PREFIX;
+const queueOptions = bullmqPrefix ? { connection, prefix: bullmqPrefix } : { connection };
 
 const EVIDENCE_DIR = path.resolve(
   process.env.EVIDENCE_DIR ?? path.join(process.cwd(), '../../evidence')
 );
 
 // Queues are created once, not per job run.
-const analyzeQueue = new Queue(QUEUES.analyze, { connection });
-const diffQueue = new Queue(QUEUES.diff, { connection });
-const evidenceQueue = new Queue(QUEUES.evidence, { connection });
+const analyzeQueue = new Queue(QUEUES.analyze, queueOptions);
+const diffQueue = new Queue(QUEUES.diff, queueOptions);
+const evidenceQueue = new Queue(QUEUES.evidence, queueOptions);
 
 type Severity = 'CRITICAL' | 'SERIOUS' | 'MODERATE' | 'MINOR';
 const SEVERITY_BY_IMPACT: Record<string, Severity> = {
@@ -37,7 +40,7 @@ async function markScanFailed(scanId: string) {
   try {
     await prisma.scan.update({
       where: { id: scanId },
-      data: { status: 'failed', completedAt: new Date() }
+      data: { status: 'failed', coverage: 'FAILED', completedAt: new Date() }
     });
   } catch (e) {
     console.error(`Failed to mark scan ${scanId} as failed:`, e);
@@ -49,42 +52,10 @@ async function crawlProcessor(job: Job<{ scanId: string }>) {
   try {
     await prisma.scan.update({
       where: { id: scanId },
-      data: { status: 'crawling' }
+      data: { status: 'crawling', coverage: 'PENDING' }
     });
-    const scan = await prisma.scan.findUniqueOrThrow({
-      where: { id: scanId },
-      include: { pages: true }
-    });
-    const pagesDir = path.join(EVIDENCE_DIR, 'pages');
-    await fs.mkdir(pagesDir, { recursive: true });
-    let crawledCount = 0;
-    const session = await createBrowserSession();
-    try {
-      for (const page of scan.pages) {
-        try {
-          const { title, screenshotBuffer } = await session.crawlPage(page.url);
-          await fs.writeFile(path.join(pagesDir, `${page.id}.png`), screenshotBuffer);
-          await prisma.page.update({
-            where: { id: page.id },
-            data: { title, status: 200 }
-          });
-          crawledCount += 1;
-        } catch (e) {
-          console.error(`Crawl failed for page ${page.id}:`, e);
-          await prisma.page.update({
-            where: { id: page.id },
-            data: { status: 500 }
-          });
-        }
-      }
-    } finally {
-      await session.close();
-    }
-    if (scan.pages.length > 0 && crawledCount === 0) {
-      console.error(`All ${scan.pages.length} pages failed to crawl for scan ${scanId}`);
-      await markScanFailed(scanId);
-      return;
-    }
+    // Navigation, analysis, screenshot, and evidence must share one browser page.
+    // The analyze lane performs that atomic observation rather than doing a stale pre-crawl.
     await analyzeQueue.add(
       QUEUES.analyze,
       { scanId },
@@ -127,6 +98,7 @@ async function persistPageViolations(
       ruleId: violation.ruleId,
       pageUrl: page.url,
       selector: violation.selector,
+      targetIdentity: violation.targetIdentity,
       message: violation.message
     });
     if (rowsByFingerprint.has(fingerprint)) continue;
@@ -164,12 +136,17 @@ async function persistPageViolations(
         meta: {
           title: page.title,
           url: page.url,
-          ...(violation?.failureSummary && { failureSummary: violation.failureSummary })
+          ...(violation?.failureSummary && { failureSummary: violation.failureSummary }),
+          ...(violation?.targetIdentity && { targetIdentity: violation.targetIdentity })
         }
       };
     }),
     skipDuplicates: true
   });
+}
+
+function safeFailureReason(error: unknown): string {
+  return publicFailureReason(error);
 }
 
 async function analyzeProcessor(job: Job<{ scanId: string }>) {
@@ -183,27 +160,68 @@ async function analyzeProcessor(job: Job<{ scanId: string }>) {
       where: { id: scanId },
       include: { pages: true }
     });
-    const session = await createBrowserSession();
+    const pagesDir = path.join(EVIDENCE_DIR, 'pages');
+    await fs.mkdir(pagesDir, { recursive: true });
+    let analyzed = 0;
+    let failed = 0;
+    let session: Awaited<ReturnType<typeof createBrowserSession>>;
+    try {
+      session = await createBrowserSession();
+    } catch (error) {
+      const reason = safeFailureReason(error);
+      await prisma.page.updateMany({
+        where: { scanId, outcome: 'PENDING' },
+        data: { outcome: 'FAILED', error: reason, status: null }
+      });
+      await prisma.scan.update({
+        where: { id: scanId },
+        data: { status: 'failed', coverage: 'FAILED', completedAt: new Date() }
+      });
+      console.error(`Browser launch failed for scan ${scanId}: ${reason}`);
+      return;
+    }
     try {
       for (const page of scan.pages) {
-        if (page.status !== 200) continue; // crawl failed; nothing to analyze
         try {
-          const violations = await session.analyzePage(page.url);
-          await persistPageViolations(page, violations);
-        } catch (e) {
-          console.error(`Analyze failed for page ${page.id}:`, e);
+          const result = await session.scanPage(page.url);
+          await fs.writeFile(path.join(pagesDir, `${page.id}.png`), result.screenshotBuffer);
+          await prisma.page.update({
+            where: { id: page.id },
+            data: { title: result.title, status: result.responseStatus, outcome: 'ANALYZED', error: null }
+          });
+          await persistPageViolations({ ...page, title: result.title }, result.violations);
+          analyzed += 1;
+        } catch (error) {
+          failed += 1;
+          const status = error instanceof ScanPageError ? error.responseStatus : null;
+          const reason = safeFailureReason(error);
+          console.error(`Analyze failed for page ${page.id}: ${reason}`);
+          await prisma.page.update({
+            where: { id: page.id },
+            data: { status, outcome: 'FAILED', error: reason }
+          });
         }
       }
     } finally {
       await session.close();
     }
+
+    const outcome = decideScanOutcome({ attempted: scan.pages.length, analyzed, failed });
+    if (!outcome.shouldDiff) {
+      await prisma.scan.update({
+        where: { id: scanId },
+        data: { status: outcome.scanStatus, coverage: outcome.coverage, completedAt: new Date() }
+      });
+      return;
+    }
+    await prisma.scan.update({ where: { id: scanId }, data: { coverage: outcome.coverage } });
     await diffQueue.add(
       QUEUES.diff,
       { scanId },
       { jobId: `${scanId}-diff`, removeOnComplete: true, removeOnFail: true }
     );
   } catch (e) {
-    console.error('Analyze processor error:', e);
+    console.error(`Analyze processor failed for scan ${scanId}`);
     await markScanFailed(scanId);
     throw e;
   }
@@ -221,6 +239,7 @@ async function diffProcessor(job: Job<{ scanId: string }>) {
       where: {
         projectId: scan.projectId,
         status: 'completed',
+        coverage: 'COMPLETE',
         completedAt: { lt: scan.startedAt ?? new Date() }
       },
       orderBy: { completedAt: 'desc' }
@@ -276,10 +295,10 @@ async function evidenceProcessor(job: Job<{ scanId: string }>) {
   }
 }
 
-const crawlWorker = new Worker(QUEUES.crawl, crawlProcessor, { connection });
-const analyzeWorker = new Worker(QUEUES.analyze, analyzeProcessor, { connection });
-const diffWorker = new Worker(QUEUES.diff, diffProcessor, { connection });
-const evidenceWorker = new Worker(QUEUES.evidence, evidenceProcessor, { connection });
+const crawlWorker = new Worker(QUEUES.crawl, crawlProcessor, queueOptions);
+const analyzeWorker = new Worker(QUEUES.analyze, analyzeProcessor, queueOptions);
+const diffWorker = new Worker(QUEUES.diff, diffProcessor, queueOptions);
+const evidenceWorker = new Worker(QUEUES.evidence, evidenceProcessor, queueOptions);
 
 let shuttingDown = false;
 async function shutdown() {

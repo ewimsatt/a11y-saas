@@ -39,4 +39,23 @@ describe('stableFingerprint', () => {
   it('produces a 24-char hex digest', () => {
     expect(stableFingerprint(base)).toMatch(/^[0-9a-f]{24}$/);
   });
+
+  it('does not merge structurally different axe targets with the same display selector', () => {
+    const input = { ruleId: 'image-alt', pageUrl: 'https://e.com', message: 'missing alt', selector: 'iframe >> button' };
+    expect(stableFingerprint({ ...input, targetIdentity: '[["iframe","button"]]' })).not.toBe(
+      stableFingerprint({ ...input, targetIdentity: '["iframe","button"]' })
+    );
+    expect(stableFingerprint({ ...input, targetIdentity: '[["iframe"],["button"]]' })).toBe(
+      stableFingerprint({ ...input, targetIdentity: '[["iframe"],["button"]]' })
+    );
+  });
+
+  it('keeps case-sensitive structured targets as two unique finding records', () => {
+    const input = { ruleId: 'image-alt', pageUrl: 'https://e.com', message: 'missing alt', selector: '#same-display' };
+    const fingerprints = new Set([
+      stableFingerprint({ ...input, targetIdentity: '["#Foo"]' }),
+      stableFingerprint({ ...input, targetIdentity: '["#foo"]' })
+    ]);
+    expect(fingerprints.size).toBe(2);
+  });
 });

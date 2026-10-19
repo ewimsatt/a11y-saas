@@ -32,4 +32,11 @@ describe('checkScanTargetUrl', () => {
   ])('blocks %s', (url) => {
     expect(checkScanTargetUrl(url).ok).toBe(false);
   });
+
+  it('rejects userinfo without echoing credentials', () => {
+    const result = checkScanTargetUrl('https://alice:secret@example.com/private?token=top-secret');
+    expect(result).toEqual({ ok: false, reason: 'URLs with credentials cannot be scanned' });
+    expect(JSON.stringify(result)).not.toContain('alice');
+    expect(JSON.stringify(result)).not.toContain('secret');
+  });
 });

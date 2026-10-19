@@ -28,6 +28,7 @@ export type ScanMinAggregateOutputType = {
   id: string | null
   projectId: string | null
   status: $Enums.ScanStatus | null
+  coverage: $Enums.ScanCoverage | null
   startedAt: Date | null
   completedAt: Date | null
 }
@@ -36,6 +37,7 @@ export type ScanMaxAggregateOutputType = {
   id: string | null
   projectId: string | null
   status: $Enums.ScanStatus | null
+  coverage: $Enums.ScanCoverage | null
   startedAt: Date | null
   completedAt: Date | null
 }
@@ -44,6 +46,7 @@ export type ScanCountAggregateOutputType = {
   id: number
   projectId: number
   status: number
+  coverage: number
   startedAt: number
   completedAt: number
   _all: number
@@ -54,6 +57,7 @@ export type ScanMinAggregateInputType = {
   id?: true
   projectId?: true
   status?: true
+  coverage?: true
   startedAt?: true
   completedAt?: true
 }
@@ -62,6 +66,7 @@ export type ScanMaxAggregateInputType = {
   id?: true
   projectId?: true
   status?: true
+  coverage?: true
   startedAt?: true
   completedAt?: true
 }
@@ -70,6 +75,7 @@ export type ScanCountAggregateInputType = {
   id?: true
   projectId?: true
   status?: true
+  coverage?: true
   startedAt?: true
   completedAt?: true
   _all?: true
@@ -151,6 +157,7 @@ export type ScanGroupByOutputType = {
   id: string
   projectId: string
   status: $Enums.ScanStatus
+  coverage: $Enums.ScanCoverage
   startedAt: Date | null
   completedAt: Date | null
   _count: ScanCountAggregateOutputType | null
@@ -180,6 +187,7 @@ export type ScanWhereInput = {
   id?: Prisma.StringFilter<"Scan"> | string
   projectId?: Prisma.StringFilter<"Scan"> | string
   status?: Prisma.EnumScanStatusFilter<"Scan"> | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFilter<"Scan"> | $Enums.ScanCoverage
   startedAt?: Prisma.DateTimeNullableFilter<"Scan"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"Scan"> | Date | string | null
   pages?: Prisma.PageListRelationFilter
@@ -191,6 +199,7 @@ export type ScanOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  coverage?: Prisma.SortOrder
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   pages?: Prisma.PageOrderByRelationAggregateInput
@@ -205,6 +214,7 @@ export type ScanWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.ScanWhereInput | Prisma.ScanWhereInput[]
   projectId?: Prisma.StringFilter<"Scan"> | string
   status?: Prisma.EnumScanStatusFilter<"Scan"> | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFilter<"Scan"> | $Enums.ScanCoverage
   startedAt?: Prisma.DateTimeNullableFilter<"Scan"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"Scan"> | Date | string | null
   pages?: Prisma.PageListRelationFilter
@@ -216,6 +226,7 @@ export type ScanOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  coverage?: Prisma.SortOrder
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.ScanCountOrderByAggregateInput
@@ -230,6 +241,7 @@ export type ScanScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"Scan"> | string
   projectId?: Prisma.StringWithAggregatesFilter<"Scan"> | string
   status?: Prisma.EnumScanStatusWithAggregatesFilter<"Scan"> | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageWithAggregatesFilter<"Scan"> | $Enums.ScanCoverage
   startedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Scan"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Scan"> | Date | string | null
 }
@@ -237,6 +249,7 @@ export type ScanScalarWhereWithAggregatesInput = {
 export type ScanCreateInput = {
   id?: string
   status?: $Enums.ScanStatus
+  coverage?: $Enums.ScanCoverage
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   pages?: Prisma.PageCreateNestedManyWithoutScanInput
@@ -248,6 +261,7 @@ export type ScanUncheckedCreateInput = {
   id?: string
   projectId: string
   status?: $Enums.ScanStatus
+  coverage?: $Enums.ScanCoverage
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   pages?: Prisma.PageUncheckedCreateNestedManyWithoutScanInput
@@ -257,6 +271,7 @@ export type ScanUncheckedCreateInput = {
 export type ScanUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumScanStatusFieldUpdateOperationsInput | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFieldUpdateOperationsInput | $Enums.ScanCoverage
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   pages?: Prisma.PageUpdateManyWithoutScanNestedInput
@@ -268,6 +283,7 @@ export type ScanUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   projectId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumScanStatusFieldUpdateOperationsInput | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFieldUpdateOperationsInput | $Enums.ScanCoverage
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   pages?: Prisma.PageUncheckedUpdateManyWithoutScanNestedInput
@@ -278,6 +294,7 @@ export type ScanCreateManyInput = {
   id?: string
   projectId: string
   status?: $Enums.ScanStatus
+  coverage?: $Enums.ScanCoverage
   startedAt?: Date | string | null
   completedAt?: Date | string | null
 }
@@ -285,6 +302,7 @@ export type ScanCreateManyInput = {
 export type ScanUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumScanStatusFieldUpdateOperationsInput | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFieldUpdateOperationsInput | $Enums.ScanCoverage
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
@@ -293,6 +311,7 @@ export type ScanUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   projectId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumScanStatusFieldUpdateOperationsInput | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFieldUpdateOperationsInput | $Enums.ScanCoverage
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
@@ -311,6 +330,7 @@ export type ScanCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  coverage?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
 }
@@ -319,6 +339,7 @@ export type ScanMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  coverage?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
 }
@@ -327,6 +348,7 @@ export type ScanMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  coverage?: Prisma.SortOrder
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
 }
@@ -382,6 +404,10 @@ export type EnumScanStatusFieldUpdateOperationsInput = {
   set?: $Enums.ScanStatus
 }
 
+export type EnumScanCoverageFieldUpdateOperationsInput = {
+  set?: $Enums.ScanCoverage
+}
+
 export type NullableDateTimeFieldUpdateOperationsInput = {
   set?: Date | string | null
 }
@@ -417,6 +443,7 @@ export type ScanUpdateOneRequiredWithoutFindingsNestedInput = {
 export type ScanCreateWithoutProjectInput = {
   id?: string
   status?: $Enums.ScanStatus
+  coverage?: $Enums.ScanCoverage
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   pages?: Prisma.PageCreateNestedManyWithoutScanInput
@@ -426,6 +453,7 @@ export type ScanCreateWithoutProjectInput = {
 export type ScanUncheckedCreateWithoutProjectInput = {
   id?: string
   status?: $Enums.ScanStatus
+  coverage?: $Enums.ScanCoverage
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   pages?: Prisma.PageUncheckedCreateNestedManyWithoutScanInput
@@ -465,6 +493,7 @@ export type ScanScalarWhereInput = {
   id?: Prisma.StringFilter<"Scan"> | string
   projectId?: Prisma.StringFilter<"Scan"> | string
   status?: Prisma.EnumScanStatusFilter<"Scan"> | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFilter<"Scan"> | $Enums.ScanCoverage
   startedAt?: Prisma.DateTimeNullableFilter<"Scan"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"Scan"> | Date | string | null
 }
@@ -472,6 +501,7 @@ export type ScanScalarWhereInput = {
 export type ScanCreateWithoutPagesInput = {
   id?: string
   status?: $Enums.ScanStatus
+  coverage?: $Enums.ScanCoverage
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   findings?: Prisma.FindingCreateNestedManyWithoutScanInput
@@ -482,6 +512,7 @@ export type ScanUncheckedCreateWithoutPagesInput = {
   id?: string
   projectId: string
   status?: $Enums.ScanStatus
+  coverage?: $Enums.ScanCoverage
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   findings?: Prisma.FindingUncheckedCreateNestedManyWithoutScanInput
@@ -506,6 +537,7 @@ export type ScanUpdateToOneWithWhereWithoutPagesInput = {
 export type ScanUpdateWithoutPagesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumScanStatusFieldUpdateOperationsInput | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFieldUpdateOperationsInput | $Enums.ScanCoverage
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   findings?: Prisma.FindingUpdateManyWithoutScanNestedInput
@@ -516,6 +548,7 @@ export type ScanUncheckedUpdateWithoutPagesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   projectId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumScanStatusFieldUpdateOperationsInput | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFieldUpdateOperationsInput | $Enums.ScanCoverage
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   findings?: Prisma.FindingUncheckedUpdateManyWithoutScanNestedInput
@@ -524,6 +557,7 @@ export type ScanUncheckedUpdateWithoutPagesInput = {
 export type ScanCreateWithoutFindingsInput = {
   id?: string
   status?: $Enums.ScanStatus
+  coverage?: $Enums.ScanCoverage
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   pages?: Prisma.PageCreateNestedManyWithoutScanInput
@@ -534,6 +568,7 @@ export type ScanUncheckedCreateWithoutFindingsInput = {
   id?: string
   projectId: string
   status?: $Enums.ScanStatus
+  coverage?: $Enums.ScanCoverage
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   pages?: Prisma.PageUncheckedCreateNestedManyWithoutScanInput
@@ -558,6 +593,7 @@ export type ScanUpdateToOneWithWhereWithoutFindingsInput = {
 export type ScanUpdateWithoutFindingsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumScanStatusFieldUpdateOperationsInput | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFieldUpdateOperationsInput | $Enums.ScanCoverage
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   pages?: Prisma.PageUpdateManyWithoutScanNestedInput
@@ -568,6 +604,7 @@ export type ScanUncheckedUpdateWithoutFindingsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   projectId?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumScanStatusFieldUpdateOperationsInput | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFieldUpdateOperationsInput | $Enums.ScanCoverage
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   pages?: Prisma.PageUncheckedUpdateManyWithoutScanNestedInput
@@ -576,6 +613,7 @@ export type ScanUncheckedUpdateWithoutFindingsInput = {
 export type ScanCreateManyProjectInput = {
   id?: string
   status?: $Enums.ScanStatus
+  coverage?: $Enums.ScanCoverage
   startedAt?: Date | string | null
   completedAt?: Date | string | null
 }
@@ -583,6 +621,7 @@ export type ScanCreateManyProjectInput = {
 export type ScanUpdateWithoutProjectInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumScanStatusFieldUpdateOperationsInput | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFieldUpdateOperationsInput | $Enums.ScanCoverage
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   pages?: Prisma.PageUpdateManyWithoutScanNestedInput
@@ -592,6 +631,7 @@ export type ScanUpdateWithoutProjectInput = {
 export type ScanUncheckedUpdateWithoutProjectInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumScanStatusFieldUpdateOperationsInput | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFieldUpdateOperationsInput | $Enums.ScanCoverage
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   pages?: Prisma.PageUncheckedUpdateManyWithoutScanNestedInput
@@ -601,6 +641,7 @@ export type ScanUncheckedUpdateWithoutProjectInput = {
 export type ScanUncheckedUpdateManyWithoutProjectInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumScanStatusFieldUpdateOperationsInput | $Enums.ScanStatus
+  coverage?: Prisma.EnumScanCoverageFieldUpdateOperationsInput | $Enums.ScanCoverage
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
@@ -649,6 +690,7 @@ export type ScanSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   id?: boolean
   projectId?: boolean
   status?: boolean
+  coverage?: boolean
   startedAt?: boolean
   completedAt?: boolean
   pages?: boolean | Prisma.Scan$pagesArgs<ExtArgs>
@@ -661,6 +703,7 @@ export type ScanSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   id?: boolean
   projectId?: boolean
   status?: boolean
+  coverage?: boolean
   startedAt?: boolean
   completedAt?: boolean
   project?: boolean | Prisma.ProjectDefaultArgs<ExtArgs>
@@ -670,6 +713,7 @@ export type ScanSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   id?: boolean
   projectId?: boolean
   status?: boolean
+  coverage?: boolean
   startedAt?: boolean
   completedAt?: boolean
   project?: boolean | Prisma.ProjectDefaultArgs<ExtArgs>
@@ -679,11 +723,12 @@ export type ScanSelectScalar = {
   id?: boolean
   projectId?: boolean
   status?: boolean
+  coverage?: boolean
   startedAt?: boolean
   completedAt?: boolean
 }
 
-export type ScanOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "projectId" | "status" | "startedAt" | "completedAt", ExtArgs["result"]["scan"]>
+export type ScanOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "projectId" | "status" | "coverage" | "startedAt" | "completedAt", ExtArgs["result"]["scan"]>
 export type ScanInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   pages?: boolean | Prisma.Scan$pagesArgs<ExtArgs>
   findings?: boolean | Prisma.Scan$findingsArgs<ExtArgs>
@@ -708,6 +753,7 @@ export type $ScanPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     id: string
     projectId: string
     status: $Enums.ScanStatus
+    coverage: $Enums.ScanCoverage
     startedAt: Date | null
     completedAt: Date | null
   }, ExtArgs["result"]["scan"]>
@@ -1139,6 +1185,7 @@ export interface ScanFieldRefs {
   readonly id: Prisma.FieldRef<"Scan", 'String'>
   readonly projectId: Prisma.FieldRef<"Scan", 'String'>
   readonly status: Prisma.FieldRef<"Scan", 'ScanStatus'>
+  readonly coverage: Prisma.FieldRef<"Scan", 'ScanCoverage'>
   readonly startedAt: Prisma.FieldRef<"Scan", 'DateTime'>
   readonly completedAt: Prisma.FieldRef<"Scan", 'DateTime'>
 }

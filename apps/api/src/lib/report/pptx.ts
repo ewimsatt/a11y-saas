@@ -57,6 +57,10 @@ function findingBullets(findings: ReportFinding[], max: number): PptxGenJS.TextP
 }
 
 export async function buildPptx(data: ReportData): Promise<Buffer> {
+  const complete = data.scan.coverage === 'COMPLETE';
+  const score = complete ? data.score : null;
+  const grade = complete ? data.grade : null;
+  const comparison = complete && data.comparison?.prevCoverage === 'COMPLETE' ? data.comparison : null;
   const pptx = new PptxCtor();
   pptx.layout = 'LAYOUT_16x9';
   pptx.author = 'A11Y SaaS';
@@ -73,7 +77,7 @@ export async function buildPptx(data: ReportData): Promise<Buffer> {
     slide.addText(data.project.name, { ...TITLE_OPTS, x: 0.6, y: 1.9, w: 8.8, h: 1.1, fontSize: 44 });
     slide.addText(data.project.baseUrl, { ...BODY_OPTS, color: MUTED, x: 0.6, y: 3.0, w: 8.8, h: 0.5, fontSize: 16 });
     slide.addText(
-      `Scan completed ${fmtDate(data.scan.completedAt)}  ·  Report generated ${fmtDate(data.generatedAt)}`,
+      `Scan status ${data.scan.status} · coverage ${data.scan.coverage} · completed ${fmtDate(data.scan.completedAt)}  ·  Report generated ${fmtDate(data.generatedAt)}`,
       { ...BODY_OPTS, color: MUTED, x: 0.6, y: 4.6, w: 8.8, h: 0.4, fontSize: 12 }
     );
   }
@@ -82,21 +86,15 @@ export async function buildPptx(data: ReportData): Promise<Buffer> {
   {
     const slide = pptx.addSlide();
     addSlideHeading(slide, 'Executive Summary');
-    addKpi(slide, 0.5, String(data.score), `Score (${data.grade})`, ACCENT);
+    addKpi(slide, 0.5, score === null ? '—' : String(score), grade ? `Score (${grade})` : 'Score (not graded)', ACCENT);
     addKpi(slide, 2.85, String(data.totals.findings), 'Total findings');
     addKpi(slide, 5.2, String(data.totals.bySeverity.CRITICAL), 'Critical', SEVERITY_COLORS.CRITICAL);
     addKpi(slide, 7.55, `${data.pages.filter((p) => p.crawled).length}/${data.pages.length}`, 'Pages scanned');
     const open = data.totals.byStatus.OPEN + data.totals.byStatus.REGRESSED;
-    slide.addText(
-      [
-        { text: `${open} findings need action. `, options: { ...BODY_OPTS, fontSize: 16, bold: true } },
-        {
-          text: `${data.totals.byStatus.WAIVED} waived, ${data.totals.byStatus.FIXED} fixed since the previous scan. Waived findings are excluded from the health score.`,
-          options: { ...BODY_OPTS, fontSize: 16, color: MUTED }
-        }
-      ],
-      { x: 0.5, y: 3.5, w: 9, h: 1.2 }
-    );
+    const summary = complete
+      ? `${open} findings need action. ${data.totals.byStatus.WAIVED} waived${comparison ? `, ${comparison.fixed} fixed since the previous complete scan` : ''}. Waived findings are excluded from the health score.`
+      : `${data.scan.coverage} coverage: ${data.coverage.analyzedPages}/${data.coverage.requestedPages} requested pages analyzed${data.coverage.failedPages ? `; ${data.coverage.failedPages} failed` : ''}. NOT GRADED. Findings and totals are not a complete audit.`;
+    slide.addText(summary, { ...BODY_OPTS, color: complete ? MUTED : '92400E', x: 0.5, y: 3.5, w: 9, h: 1.2, fontSize: 16 });
   }
 
   // --- Severity breakdown chart
@@ -129,13 +127,13 @@ export async function buildPptx(data: ReportData): Promise<Buffer> {
   }
 
   // --- Trend vs previous scan
-  if (data.comparison) {
+  if (comparison) {
     const slide = pptx.addSlide();
     addSlideHeading(slide, 'Change Since Previous Scan');
-    addKpi(slide, 0.5, String(data.comparison.fixed), 'Fixed', '15803D');
-    addKpi(slide, 2.85, String(data.comparison.regressed), 'Regressed', SEVERITY_COLORS.CRITICAL);
-    addKpi(slide, 5.2, `${data.comparison.prevTotal} → ${data.totals.findings}`, 'Total findings');
-    slide.addText(`Compared against the scan completed ${fmtDate(data.comparison.prevCompletedAt)}.`, {
+    addKpi(slide, 0.5, String(comparison.fixed), 'Fixed', '15803D');
+    addKpi(slide, 2.85, String(comparison.regressed), 'Regressed', SEVERITY_COLORS.CRITICAL);
+    addKpi(slide, 5.2, `${comparison.prevTotal} → ${data.totals.findings}`, 'Total findings');
+    slide.addText(`Compared against the scan completed ${fmtDate(comparison.prevCompletedAt)}.`, {
       ...BODY_OPTS, color: MUTED, x: 0.5, y: 3.5, w: 9, h: 0.4, fontSize: 13
     });
   }

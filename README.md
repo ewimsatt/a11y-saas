@@ -87,9 +87,11 @@ pnpm install
 ```bash
 pnpm --filter @a11y/db db:generate
 cd packages/db
-npx prisma db push --accept-data-loss
+pnpm exec prisma migrate deploy --schema prisma/schema.prisma
 cd ../..
 ```
+
+`migrate deploy` is safe for a fresh database that starts from the checked-in migration history. An existing database with untracked schema changes needs a manual Prisma baselining review first; do not use destructive `db push --accept-data-loss` to force it into shape. Rows created before the coverage migration retain conservative unknown (`PENDING`) coverage and are not used to fabricate historical comparison continuity.
 
 ### 5) Install Playwright browser
 
@@ -126,6 +128,18 @@ SCAN_ID=$(curl -s -X POST "http://localhost:3001/scans/$PROJECT_ID/run" \
 # Fetch issues (after worker completes)
 curl -s "http://localhost:3001/scans/$SCAN_ID/issues" | jq
 ```
+
+## Deterministic full-stack acceptance
+
+Run the owned-fixture acceptance locally with Docker available through your current Docker environment or configured Docker context:
+
+```bash
+pnpm test:acceptance
+```
+
+If your Docker daemon is exposed through a non-default socket, set `DOCKER_HOST` for that invocation. The harness does not select or mutate a global Docker context.
+
+The harness starts uniquely named disposable Postgres and Redis containers, applies the checked-in migrations, starts the API and worker, and scans only its own loopback fixture server. It creates fixture projects directly in the disposable database because the public API correctly rejects loopback targets. It does **not** alter scan URL policy or add a runtime fixture bypass. It verifies a clean zero-finding scan, two distinct image findings with retrievable DOM/failure evidence and nonempty PNG screenshots, partial and all-failed coverage report rendering, and a real missing-browser worker launch failure. Everything it creates is removed on exit.
 
 ## Smoke test
 
