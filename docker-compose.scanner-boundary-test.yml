@@ -1,0 +1,105 @@
+services:
+  smokescreen:
+    build:
+      context: ./infra/scanner-egress
+    command: ["--resolver-address", "45.0.0.53:53"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 128
+    mem_limit: 256m
+    cpus: 1.0
+    networks:
+      browser_internal: {}
+      scanner_egress:
+        ipv4_address: 45.0.0.2
+      trap_private:
+        ipv4_address: 10.66.0.2
+      trap_metadata:
+        ipv4_address: 169.254.169.2
+      trap_ipv6:
+        ipv6_address: fd00:dead:beef::2
+
+  browser:
+    build:
+      context: ./infra/playwright
+    environment:
+      PLAYWRIGHT_WS_TOKEN: ${PLAYWRIGHT_WS_TOKEN:?Set a disposable test token}
+      SCANNER_PROXY_URL: http://smokescreen:4750
+    read_only: true
+    tmpfs: ["/tmp", "/home/pwuser"]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:./infra/playwright/seccomp_profile.json
+    cap_drop: ["ALL"]
+    # Required by Chromium's explicitly enabled namespace/chroot sandbox.
+    cap_add: ["SYS_CHROOT"]
+    pids_limit: 512
+    mem_limit: 1g
+    cpus: 2.0
+    volumes:
+      - ./test/network-fixtures:/app/fixtures:ro
+    networks:
+      browser_internal: {}
+
+  dns:
+    image: node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402
+    user: node
+    working_dir: /fixtures
+    command: ["node", "dns-server.mjs"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    volumes:
+      - ./test/network-fixtures:/fixtures:ro
+    networks:
+      scanner_egress:
+        ipv4_address: 45.0.0.53
+
+  fixture:
+    image: node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402
+    user: node
+    working_dir: /fixtures
+    command: ["node", "http-fixture.mjs"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    volumes:
+      - ./test/network-fixtures:/fixtures:ro
+    networks:
+      scanner_egress:
+        ipv4_address: 45.0.0.10
+      trap_private:
+        ipv4_address: 10.66.0.10
+      trap_metadata:
+        ipv4_address: 169.254.169.254
+      trap_ipv6:
+        ipv6_address: fd00:dead:beef::10
+
+networks:
+  browser_internal:
+    internal: true
+  scanner_egress:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 45.0.0.0/24
+  trap_private:
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.66.0.0/24
+  trap_metadata:
+    internal: true
+    ipam:
+      config:
+        - subnet: 169.254.169.0/24
+  trap_ipv6:
+    internal: true
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: fd00:dead:beef::/64

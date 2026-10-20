@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { toRawViolations } from '../src/axeAdapter';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const connect = vi.fn();
+const launch = vi.fn();
+vi.mock('playwright', () => ({ chromium: { connect, launch } }));
+
+import { createBrowserSession, toRawViolations } from '../src/axeAdapter';
 
 describe('toRawViolations', () => {
   it('retains every axe node with its own selector and DOM evidence', () => {
@@ -53,5 +58,55 @@ describe('toRawViolations', () => {
       'iframe >> button'
     ]);
     expect(findings[1]).toMatchObject({ domSnippet: '<button>frame</button>', failureSummary: 'frame evidence' });
+  });
+});
+
+describe('createBrowserSession sidecar boundary', () => {
+  const originalEndpoint = process.env.PLAYWRIGHT_WS_ENDPOINT;
+
+  beforeEach(() => {
+    connect.mockReset();
+    launch.mockReset();
+    process.env.PLAYWRIGHT_WS_ENDPOINT = 'ws://browser:3000/a-strong-unlogged-token';
+  });
+
+  it('connects only to the configured remote sidecar and blocks service workers', async () => {
+    const page = {
+      goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
+      title: vi.fn().mockResolvedValue('Fixture'),
+      screenshot: vi.fn().mockResolvedValue(Buffer.from('png'))
+    };
+    const context = { newPage: vi.fn().mockResolvedValue(page), close: vi.fn().mockResolvedValue(undefined) };
+    const browser = { newContext: vi.fn().mockResolvedValue(context), close: vi.fn().mockResolvedValue(undefined) };
+    connect.mockResolvedValue(browser);
+
+    const session = await createBrowserSession();
+    await session.crawlPage('https://allowed.example');
+
+    expect(connect).toHaveBeenCalledWith('ws://browser:3000/a-strong-unlogged-token');
+    expect(browser.newContext).toHaveBeenCalledWith({ serviceWorkers: 'block' });
+    expect(launch).not.toHaveBeenCalled();
+    await session.close();
+  });
+
+  it('fails closed before any local browser launch when the endpoint is missing or malformed', async () => {
+    process.env.PLAYWRIGHT_WS_ENDPOINT = '';
+    await expect(createBrowserSession()).rejects.toThrow('PLAYWRIGHT_WS_ENDPOINT');
+    process.env.PLAYWRIGHT_WS_ENDPOINT = 'http://browser:3000/not-websocket';
+    await expect(createBrowserSession()).rejects.toThrow('PLAYWRIGHT_WS_ENDPOINT');
+    expect(connect).not.toHaveBeenCalled();
+    expect(launch).not.toHaveBeenCalled();
+  });
+
+  it('turns connection failures into a sanitized scan startup failure with no fallback', async () => {
+    connect.mockRejectedValue(new Error('websocket endpoint ws://browser:3000/secret-token refused'));
+
+    await expect(createBrowserSession()).rejects.toThrow('Remote scanner browser is unavailable');
+    expect(launch).not.toHaveBeenCalled();
+  });
+
+  afterAll(() => {
+    if (originalEndpoint === undefined) delete process.env.PLAYWRIGHT_WS_ENDPOINT;
+    else process.env.PLAYWRIGHT_WS_ENDPOINT = originalEndpoint;
   });
 });

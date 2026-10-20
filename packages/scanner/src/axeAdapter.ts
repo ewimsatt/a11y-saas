@@ -85,12 +85,33 @@ export type BrowserSession = {
  * Launches a single browser to be reused across multiple pages.
  * Each page operation gets a fresh tab; callers must close() the session.
  */
+function requireBrowserEndpoint(): string {
+  const endpoint = process.env.PLAYWRIGHT_WS_ENDPOINT;
+  if (!endpoint) throw new ScanPageError('PLAYWRIGHT_WS_ENDPOINT is required for the remote scanner browser');
+  try {
+    const parsed = new URL(endpoint);
+    if ((parsed.protocol !== 'ws:' && parsed.protocol !== 'wss:') || !parsed.hostname || !parsed.pathname || parsed.search || parsed.hash) {
+      throw new Error('invalid endpoint');
+    }
+  } catch {
+    throw new ScanPageError('PLAYWRIGHT_WS_ENDPOINT must be a websocket URL with a protected path');
+  }
+  return endpoint;
+}
+
+/**
+ * Connects only to the isolated remote browser sidecar. There is intentionally
+ * no local Chromium launch or per-context proxy override in this runtime.
+ */
 export async function createBrowserSession(): Promise<BrowserSession> {
+  const endpoint = requireBrowserEndpoint();
   const { chromium } = await import('playwright');
-  const browser = await chromium.launch({
-    headless: true,
-    ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH } : {})
-  });
+  let browser: import('playwright').Browser;
+  try {
+    browser = await chromium.connect(endpoint);
+  } catch {
+    throw new ScanPageError('Remote scanner browser is unavailable');
+  }
 
   // @axe-core/playwright requires pages from an explicit context
   // (browser.newPage()'s implicit context is rejected by AxeBuilder).
@@ -98,7 +119,7 @@ export async function createBrowserSession(): Promise<BrowserSession> {
     url: string,
     fn: (page: import('playwright').Page, response: import('playwright').Response) => Promise<T>
   ): Promise<T> {
-    const context = await browser.newContext();
+    const context = await browser.newContext({ serviceWorkers: 'block' });
     try {
       const page = await context.newPage();
       const response = await page.goto(url, NAV_OPTIONS);

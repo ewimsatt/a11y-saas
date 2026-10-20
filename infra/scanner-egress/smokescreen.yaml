@@ -1,0 +1,44 @@
+# Stripe Smokescreen v0.1.0 config. IANA Special-Purpose Address Registry snapshot: 2026-10-18.
+ip: "0.0.0.0"
+port: 4750
+connect_timeout: 10s
+dns_timeout: 5s
+idle_timeout: 60s
+read_header_timeout: 10s
+read_timeout: 30s
+write_timeout: 60s
+unsafe_allow_private_ranges: false
+max_concurrent_requests: 64
+max_request_rate: 100
+max_request_burst: 200
+max_concurrent_connect_tunnels: 32
+# Explicitly deny special-use ranges in addition to Smokescreen's private/routability checks.
+deny_ranges:
+  - "0.0.0.0/8"
+  - "10.0.0.0/8"
+  - "100.64.0.0/10"
+  - "127.0.0.0/8"
+  - "169.254.0.0/16"
+  - "172.16.0.0/12"
+  - "192.0.0.0/24"
+  - "192.0.2.0/24"
+  - "192.88.99.0/24"
+  - "192.168.0.0/16"
+  - "198.18.0.0/15"
+  - "198.51.100.0/24"
+  - "203.0.113.0/24"
+  - "224.0.0.0/4"
+  - "240.0.0.0/4"
+  - "::/128"
+  - "::1/128"
+  - "64:ff9b::/96"
+  - "64:ff9b:1::/48"
+  - "100::/64"
+  - "2001::/23"
+  - "2001:2::/48"
+  - "2001:db8::/32"
+  - "2002::/16"
+  - "3fff::/20"
+  - "fc00::/7"
+  - "fe80::/10"
+  - "ff00::/8"

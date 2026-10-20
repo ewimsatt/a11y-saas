@@ -7,8 +7,10 @@
     "seed": "node scripts/seed.js",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-  "test:acceptance": "scripts/full-stack-acceptance.sh",
-  "test:ui": "pnpm --filter @a11y/web build && node scripts/ui-acceptance.mjs"
+    "test:acceptance": "scripts/full-stack-acceptance.sh",
+    "test:ui": "pnpm --filter @a11y/web build && node scripts/ui-acceptance.mjs",
+    "test:scanner-egress": "node scripts/test-scanner-egress.mjs",
+    "alpha:env": "node scripts/create-alpha-env.mjs"
   },
   "dependencies": {
     "@axe-core/playwright": "^4.11.1",
@@ -21,7 +23,7 @@
     "fastify": "^5.7.4",
     "ioredis": "^5.9.3",
     "pg": "^8.18.0",
-    "playwright": "^1.58.2",
+    "playwright": "1.58.2",
     "pptxgenjs": "^4.0.1",
     "prisma": "^7.4.1",
     "tsx": "^4.21.0",

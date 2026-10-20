@@ -58,6 +58,9 @@ export function checkScanTargetUrl(raw: string): UrlCheckResult {
   if (url.username || url.password) {
     return { ok: false, reason: 'URLs with credentials cannot be scanned' };
   }
+  if (url.port && url.port !== '80' && url.port !== '443') {
+    return { ok: false, reason: 'Only HTTP(S) ports 80 and 443 can be scanned' };
+  }
   const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (BLOCKED_HOSTNAMES.has(hostname)) {
     return { ok: false, reason: 'Loopback addresses cannot be scanned' };
