@@ -8,7 +8,7 @@
 
 The application combines a React review console, a Fastify API, and a Playwright/axe-core scanning pipeline. It is more than a scanner endpoint: it keeps project and scan history, records which pages were actually analyzed, supports finding triage and waivers, and produces PDF, PowerPoint, and HTML reports.
 
-**Current release: local-only alpha.** The core workflow is implemented, but this is not a hosted, multi-tenant SaaS release. Authentication, enforced scanner network isolation, and production storage/recovery remain unfinished. See [status and boundaries](#status-and-boundaries) before running it.
+**Current status: local-only alpha.** The core workflow is implemented, but this is not a hosted, multi-tenant SaaS release. Authentication, enforced scanner network isolation, and production storage/recovery remain unfinished. See [status and boundaries](#status-and-boundaries) before running it.
 
 ## What you can do
 
@@ -18,16 +18,16 @@ The application combines a React review console, a Fastify API, and a Playwright
 | Scan selected pages | Scan the project's base URL from the console, or submit up to 20 explicit URLs through the API. There is no automatic site discovery or link-following crawl. |
 | Detect accessibility issues | Run axe-core's WCAG 2.0 A/AA-tagged checks in Chromium. Retain a separate finding for each violating node, with rule, severity, page URL, selector, and WCAG tags where provided. |
 | Inspect evidence | View the page screenshot, node HTML, and axe failure explanation. Analysis and screenshots come from the same page visit rather than separate crawl and analysis visits. |
-| Triage findings | Search and filter the issues console, use triage presets, open evidence, and waive a finding with a recorded reason. |
-| Track scan outcomes | See lifecycle status, page outcomes, and complete, partial, or failed coverage. A failed page is not silently counted as a clean result. |
+| Triage findings | Filter by severity, status, and WCAG reference; use triage presets, open evidence, and waive a finding with a recorded reason. There is no general free-text finding search. |
+| Track scan outcomes | See lifecycle status and coverage in the console, with per-page outcomes available through scan detail in the API and reports. A failed page is not silently counted as a clean result. |
 | Compare findings | Apply basic fingerprint-based `FIXED` / `REGRESSED` updates against the previous eligible complete scan. This is not yet a persistent cross-scan issue tracker. |
-| Share results | Generate PDF, PowerPoint (`.pptx`), and HTML reports with findings and scan-coverage context. |
+| Share results | Generate PDF, PowerPoint (`.pptx`), and HTML reports with findings and scan-coverage context. These are bounded summaries with finding, screenshot, and snippet limits, not exhaustive evidence exports. |
 
 ### A typical workflow
 
 1. **Create a project** for a website you own or have permission to test.
 2. **Run a scan.** The console polls the selected scan and loads its findings when processing finishes.
-3. **Check coverage before interpreting results.** Review failed pages as well as detected violations.
+3. **Check coverage before interpreting results.** Use the report or scan-detail API to review failed pages as well as detected violations.
 4. **Triage the findings.** Filter the list, inspect screenshots and DOM evidence, and record a reason when waiving a finding.
 5. **Export a report** for the people doing the remediation. Rescan the same page set after changes.
 
