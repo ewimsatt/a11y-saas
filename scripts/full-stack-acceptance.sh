@@ -23,6 +23,10 @@ cleanup() {
     # below remain fail-closed for owned-resource cleanup.
     echo "failed to capture disposable Compose logs" >&2
   fi
+  # Worker evidence is created as container root. Before the host deletes only
+  # this run's temp directory, let the still-running disposable API grant it
+  # deletion rights. Failure here is diagnostic; `down` and label checks fail closed.
+  compose exec -T api sh -c 'chmod -R a+rwx /evidence' >/dev/null 2>&1 || true
   if ! BULLMQ_PREFIX="$BULLMQ_PREFIX" PLAYWRIGHT_WS_TOKEN="$PLAYWRIGHT_WS_TOKEN" ACCEPTANCE_EVIDENCE_DIR="$EVIDENCE_DIR" \
     compose down -v --remove-orphans >/dev/null 2>&1; then
     echo "failed to remove disposable Compose project $PROJECT" >&2
@@ -55,6 +59,9 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$EVIDENCE_DIR"
+# The disposable worker runs as the image's non-root node user. The harness
+# owner keeps deletion rights over evidence directories it created in CI.
+chmod 0777 "$EVIDENCE_DIR"
 export BULLMQ_PREFIX FIXTURE_ORIGIN EVIDENCE_DIR PLAYWRIGHT_WS_TOKEN
 export ACCEPTANCE_EVIDENCE_DIR="$EVIDENCE_DIR"
 printf 'acceptance project=%s\n' "$PROJECT"
