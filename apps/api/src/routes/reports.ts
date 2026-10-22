@@ -4,10 +4,11 @@ import { buildReportData } from '../lib/report/data';
 import { renderReportHtml } from '../lib/report/html';
 import { renderPdf } from '../lib/report/pdf';
 import { buildPptx } from '../lib/report/pptx';
+import { buildFindingsCsv } from '../lib/report/quality';
 import { errorMessage } from '../lib/errors';
 
 const reportQuerySchema = z.object({
-  format: z.enum(['pdf', 'pptx', 'html']).default('pdf')
+  format: z.enum(['pdf', 'pptx', 'html', 'csv']).default('pdf')
 });
 
 function reportFilename(projectName: string, format: string, generatedAt: Date): string {
@@ -30,18 +31,24 @@ export async function reportRoutes(app: FastifyInstance) {
     }
     const { format } = parsed.data;
 
-    const data = await buildReportData(id);
+    const data = await buildReportData(id, { includeScreenshots: format !== 'csv' });
     if (!data) {
       return reply.code(404).send({ error: 'Scan not found' });
     }
 
     try {
+      if (format === 'csv') {
+        return reply
+          .type('text/csv; charset=utf-8')
+          .header('content-disposition', `attachment; filename="${reportFilename(data.project.name, 'csv', data.generatedAt)}"`)
+          .send(buildFindingsCsv(data));
+      }
       const html = renderReportHtml(data);
       if (format === 'html') {
         return reply.type('text/html; charset=utf-8').send(html);
       }
       if (format === 'pdf') {
-        const pdf = await renderPdf(html);
+        const pdf = await renderPdf(html, data.scan.id);
         return reply
           .type('application/pdf')
           .header(
