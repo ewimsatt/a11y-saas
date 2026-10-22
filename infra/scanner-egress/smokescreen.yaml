@@ -1,5 +1,7 @@
 # Stripe Smokescreen v0.1.0 config. IANA Special-Purpose Address Registry snapshot: 2026-10-18.
-ip: "0.0.0.0"
+# The port guard is the only listener exposed to browser-control peers.
+# Smokescreen must stay loopback-only inside this container.
+ip: "127.0.0.1"
 port: 4750
 connect_timeout: 10s
 dns_timeout: 5s

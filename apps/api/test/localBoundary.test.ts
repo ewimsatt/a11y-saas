@@ -16,8 +16,10 @@ describe('local runtime boundary', () => {
     });
   });
 
-  it('rejects a non-loopback API host before listening', () => {
+  it('rejects non-loopback API binding unless the explicit container-only mode is enabled', () => {
     expect(() => resolveRuntimeConfig({ HOST: '0.0.0.0' })).toThrow(/loopback/i);
+    expect(resolveRuntimeConfig({ HOST: '0.0.0.0', CONTAINER_BIND_ALL_INTERFACES: '1' })).toMatchObject({ host: '0.0.0.0' });
+    expect(() => resolveRuntimeConfig({ HOST: '0.0.0.0', CONTAINER_BIND_ALL_INTERFACES: 'true' })).toThrow(/loopback/i);
   });
 
   it('allows configured trusted origins while refusing untrusted browser origins', async () => {

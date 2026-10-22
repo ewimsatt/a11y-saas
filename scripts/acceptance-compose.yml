@@ -5,19 +5,158 @@ services:
       POSTGRES_USER: acceptance
       POSTGRES_PASSWORD: acceptance-only-not-a-secret
       POSTGRES_DB: a11y
-    ports:
-      - "127.0.0.1:${ACCEPTANCE_POSTGRES_PORT}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U acceptance -d a11y"]
       interval: 2s
       timeout: 3s
       retries: 30
+    networks: [app_internal]
+
   redis:
     image: redis:7
-    ports:
-      - "127.0.0.1:${ACCEPTANCE_REDIS_PORT}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
       timeout: 3s
       retries: 30
+    networks: [app_internal]
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: infra/alpha/Dockerfile
+    command: ["pnpm", "exec", "prisma", "migrate", "deploy", "--schema", "packages/db/prisma/schema.prisma"]
+    environment:
+      DATABASE_URL: postgresql://acceptance:acceptance-only-not-a-secret@postgres:5432/a11y
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [app_internal]
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/alpha/Dockerfile
+    command: ["pnpm", "--filter", "@a11y/api", "start"]
+    environment:
+      DATABASE_URL: postgresql://acceptance:acceptance-only-not-a-secret@postgres:5432/a11y
+      REDIS_URL: redis://redis:6379
+      BULLMQ_PREFIX: ${BULLMQ_PREFIX}
+      EVIDENCE_DIR: /evidence
+      FIXTURE_ORIGIN: http://allowed.test
+      HOST: 127.0.0.1
+      PORT: "3001"
+    volumes:
+      - ${ACCEPTANCE_EVIDENCE_DIR}:/evidence
+      - ./:/acceptance:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [app_internal]
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/alpha/Dockerfile
+    command: ["pnpm", "--filter", "@a11y/worker", "start"]
+    environment:
+      DATABASE_URL: postgresql://acceptance:acceptance-only-not-a-secret@postgres:5432/a11y
+      REDIS_URL: redis://redis:6379
+      BULLMQ_PREFIX: ${BULLMQ_PREFIX}
+      PLAYWRIGHT_WS_ENDPOINT: ws://browser:3000/${PLAYWRIGHT_WS_TOKEN}
+      EVIDENCE_DIR: /evidence
+    volumes:
+      - ${ACCEPTANCE_EVIDENCE_DIR}:/evidence
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      browser:
+        condition: service_healthy
+    networks: [app_internal, browser_control]
+
+  browser:
+    build:
+      context: ../infra/playwright
+    environment:
+      PLAYWRIGHT_WS_TOKEN: ${PLAYWRIGHT_WS_TOKEN}
+      SCANNER_PROXY_URL: http://smokescreen:4750
+    read_only: true
+    tmpfs: ["/tmp", "/home/pwuser"]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp:../infra/playwright/seccomp_profile.json
+    cap_drop: ["ALL"]
+    cap_add: ["SYS_CHROOT"]
+    pids_limit: 512
+    mem_limit: 1g
+    cpus: 2.0
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('net').connect(3000, '127.0.0.1').once('connect', () => process.exit(0)).once('error', () => process.exit(1))\""]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [browser_control]
+
+  smokescreen:
+    build:
+      context: ../infra/scanner-egress
+    command: ["--resolver-address", "45.0.0.53:53"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    pids_limit: 128
+    mem_limit: 256m
+    cpus: 1.0
+    networks:
+      browser_control: {}
+      scanner_egress:
+        ipv4_address: 45.0.0.2
+
+  dns:
+    image: node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402
+    user: node
+    working_dir: /fixtures
+    command: ["node", "dns-server.mjs"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    volumes:
+      - ../test/network-fixtures:/fixtures:ro
+    networks:
+      scanner_egress:
+        ipv4_address: 45.0.0.53
+
+  fixture:
+    image: node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402
+    user: node
+    working_dir: /fixtures
+    command: ["node", "acceptance-fixture.mjs"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    volumes:
+      - ./:/fixtures:ro
+    networks:
+      scanner_egress:
+        ipv4_address: 45.0.0.10
+
+networks:
+  app_internal: { internal: true }
+  browser_control: { internal: true }
+  scanner_egress:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 45.0.0.0/24

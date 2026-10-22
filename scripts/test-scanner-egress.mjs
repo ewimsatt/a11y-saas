@@ -127,7 +127,9 @@ try {
   assert(Object.values(smokescreenInspect.NetworkSettings.Ports ?? {}).every((bindings) => bindings === null), 'proxy port must not be host-published');
   assert.notEqual(browserInspect.Config.User, '', 'browser must declare a non-root user');
   assert.notEqual(browserInspect.Config.User, '0', 'browser must not run as root');
-  assert.notEqual(smokescreenInspect.Config.User, '', 'Smokescreen must declare a non-root user');
+  assert.equal(smokescreenInspect.Config.User, 'nonroot:nonroot', 'Smokescreen must run as its nonroot image user');
+  const upstreamAttempt = compose('exec', '-T', 'browser', 'node', '-e', "const net=require('net');const socket=net.connect({host:'smokescreen',port:4751,timeout:1500});socket.once('connect',()=>{console.error('unguarded upstream reachable');process.exit(1)});socket.once('error',()=>process.exit(0));socket.once('timeout',()=>{socket.destroy();process.exit(0)})");
+  assert.equal(upstreamAttempt.status, 0, `browser-control peers must not reach Smokescreen's upstream listener on 4751:\n${upstreamAttempt.stdout}\n${upstreamAttempt.stderr}`);
   assert(browserInspect.HostConfig.CapAdd?.includes('CAP_SYS_CHROOT'), 'browser gets only the sandbox chroot capability back');
   assert.deepEqual(browserInspect.HostConfig.CapDrop, ['ALL'], 'browser drops all ambient capabilities');
   for (const suffix of ['browser_internal', 'trap_private', 'trap_metadata', 'trap_ipv6']) {
@@ -145,8 +147,17 @@ try {
   for (const [name, result] of Object.entries(core.redirects)) assert(isDenied(result), `${name} redirect must receive denial/error: ${JSON.stringify(result)}`);
   assert.equal(core.subresources.status, 200, 'owned subresource document itself must load');
   assert.equal(core.subresources.marker, 1, 'owned subresource document marker must render');
-  assert(core.subresources.decisions.length >= 6, `forbidden subresources must produce proxy/browser denials: ${JSON.stringify(core.subresources)}`);
-  assert(core.subresources.decisions.every((item) => item.failed || item.status >= 400), 'every observed forbidden subresource must be denied');
+  const expectedForbiddenSubresources = new Set([
+    'http://10.66.0.10/trap-image',
+    'http://169.254.169.254/trap-script',
+    'http://[fd00:dead:beef::10]/trap-style',
+    'http://private.test/trap-frame',
+    'http://10.66.0.10/trap-fetch',
+    'http://169.254.169.254/trap-events',
+  ]);
+  const observedForbiddenSubresources = new Map(core.subresources.decisions.map((item) => [item.url, item]));
+  assert.deepEqual(new Set(observedForbiddenSubresources.keys()), expectedForbiddenSubresources, `each owned forbidden subresource mechanism/path must be observed exactly once: ${JSON.stringify(core.subresources)}`);
+  assert([...observedForbiddenSubresources.values()].every((item) => item.failed || item.status >= 400), 'every observed forbidden subresource must be denied');
   assert.equal(core.serviceWorker.blocked, true, `service worker registration must be blocked: ${JSON.stringify(core.serviceWorker)}`);
   assert.equal(core.mixed.status, 200, `mixed DNS must select only allowed answer: ${JSON.stringify(core.mixed)}`);
   assert.equal(core.mixed.marker, 1, 'mixed DNS public answer must reach fixture');
@@ -200,6 +211,7 @@ try {
   for (const host of ['10.66.0.10', '169.254.169.254', 'private.test', 'metadata.test', 'rebind.test']) {
     assert(proxyDecisions.some((entry) => entry.requested_host === host && entry.allow === false), `Smokescreen logs must prove denial for ${host}`);
   }
+  assert(proxyDecisions.some((entry) => entry.requested_host === '10.66.0.10:80' && entry.allow === false && entry.proxy_type === 'connect'), 'the owned WebSocket CONNECT attempt must be denied at the proxy boundary');
 
   const productionFiles = await Promise.all([
     readFile(join(root, 'infra/playwright/server.mjs'), 'utf8'),

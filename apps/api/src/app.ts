@@ -12,7 +12,7 @@ export type RuntimeConfig = {
   allowedOrigins: string[];
 };
 
-type RuntimeEnvironment = Partial<Pick<NodeJS.ProcessEnv, 'HOST' | 'PORT' | 'CORS_ORIGIN'>>;
+type RuntimeEnvironment = Partial<Pick<NodeJS.ProcessEnv, 'HOST' | 'PORT' | 'CORS_ORIGIN' | 'CONTAINER_BIND_ALL_INTERFACES'>>;
 
 type CreateAppOptions = {
   includeApplicationRoutes?: boolean;
@@ -44,7 +44,8 @@ function parseOrigins(value: string | undefined): string[] {
 
 export function resolveRuntimeConfig(env: RuntimeEnvironment = process.env as RuntimeEnvironment): RuntimeConfig {
   const host = env.HOST?.trim() || '127.0.0.1';
-  if (!LOOPBACK_HOSTS.has(host)) {
+  const containerBindingEnabled = env.CONTAINER_BIND_ALL_INTERFACES === '1';
+  if (!LOOPBACK_HOSTS.has(host) && !(host === '0.0.0.0' && containerBindingEnabled)) {
     throw new Error(`HOST must be a loopback address for this alpha service, received: ${host}`);
   }
 

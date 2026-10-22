@@ -31,5 +31,9 @@ jobs:
         env:
           DOCKER_HOST: unix:///var/run/docker.sock
         run: pnpm test:acceptance
+      - name: Scanner egress boundary acceptance
+        env:
+          DOCKER_HOST: unix:///var/run/docker.sock
+        run: pnpm test:scanner-egress
       - name: Rendered console regressions
         run: pnpm test:ui

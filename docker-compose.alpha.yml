@@ -39,7 +39,10 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:?generate alpha env first}
       REDIS_URL: redis://redis:6379
+      # Required only inside this isolated Compose network. The sole host
+      # publication remains loopback at 127.0.0.1 below.
       HOST: 0.0.0.0
+      CONTAINER_BIND_ALL_INTERFACES: "1"
       CORS_ORIGIN: http://127.0.0.1:3010,http://localhost:3010
     depends_on: [postgres, redis]
     ports: ["127.0.0.1:3001:3001"]

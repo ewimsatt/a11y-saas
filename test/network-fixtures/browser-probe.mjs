@@ -119,6 +119,9 @@ try {
     page.on('requestfailed', (request) => {
       if (request.url().includes('trap')) subresourceDecisions.push({ url: request.url(), failed: true, error: request.failure()?.errorText ?? 'request failed' });
     });
+    page.on('websocket', (socket) => {
+      if (socket.url().includes('trap')) subresourceDecisions.push({ url: socket.url(), failed: true, error: 'websocket attempted' });
+    });
     const subresourceResponse = await page.goto('http://allowed.test/subresources', { waitUntil: 'domcontentloaded', timeout: 8000 });
     await page.waitForTimeout(1000);
     const subresources = { status: subresourceResponse?.status() ?? null, marker: await page.locator('#subresources').count(), decisions: subresourceDecisions };
