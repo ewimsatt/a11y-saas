@@ -21,7 +21,7 @@ The application combines a React review console, a Fastify API, and a Playwright
 | Triage findings | Filter by severity, status, and WCAG reference; use triage presets, open evidence, and waive a finding with a recorded reason. There is no general free-text finding search. |
 | Track scan outcomes | See lifecycle status and coverage in the console, with per-page outcomes available through scan detail in the API and reports. A failed page is not silently counted as a clean result. |
 | Compare findings | Apply basic fingerprint-based `FIXED` / `REGRESSED` updates against the previous eligible complete scan. This is not yet a persistent cross-scan issue tracker. |
-| Share results | Generate PDF, PowerPoint (`.pptx`), and HTML reports with findings and scan-coverage context. These are bounded summaries with finding, screenshot, and snippet limits, not exhaustive evidence exports. |
+| Share results | Generate distinct PDF technical documents, executive PowerPoint (`.pptx`) summaries, HTML previews, and full untruncated CSV finding exports. PDF preserves every stored finding occurrence in its appendix; decks use explicitly labeled representative evidence. |
 
 ### A typical workflow
 
@@ -201,12 +201,22 @@ The queue names describe processing stages, not a site-discovery crawler. The an
 | `POST` | `/scans/:projectId/run` | Enqueue a scan. `{}` uses the base URL; `{ "urls": [...] }` supplies up to 20 URLs. |
 | `GET` | `/scans/:id` | Read lifecycle status, coverage, and per-page outcomes. |
 | `GET` | `/scans/:id/issues` | List findings with rule/evidence data; waived findings are excluded. |
-| `GET` | `/scans/:id/report?format=pdf` | Generate a report. Supported formats: `pdf`, `pptx`, `html`; default: `pdf`. |
+| `GET` | `/scans/:id/report?format=pdf` | Generate a report. Supported formats: `pdf`, `pptx`, `html`, `csv`; default: `pdf`. CSV contains every stored finding occurrence, page ID, fingerprint, stored target identity, and the complete stored evidence metadata object, with spreadsheet formula protection including leading whitespace/control prefixes. |
 | `GET` | `/issues/:id/evidence` | Read screenshot URL, DOM snippet, and evidence metadata. |
 | `POST` | `/issues/:id/waive` | Persist a waiver reason of at least 10 characters, with optional ISO datetime `expiresAt`. |
 | `GET` | `/evidence/*` | Serve local evidence files. |
 
 Legacy root aliases remain available for project listing/creation and issue evidence/waivers. Prefer the named routes above for new clients. Route implementations live in [`apps/api/src/routes`](apps/api/src/routes).
+
+### Report fixture verification
+
+Generate clearly synthetic report edge cases without a database or live service:
+
+```sh
+pnpm exec tsx scripts/generate-report-fixtures.ts
+```
+
+This writes zero-finding, incomplete/diffing, long-field, 162-occurrence, mixed-state, FIXED-only, and WAIVED-only HTML/PDF/PPTX/CSV fixtures to the platform temporary directory at `a11y-report-fixtures` by default. Set `REPORT_FIXTURE_DIR` to choose another output directory. These are test fixtures, never scan evidence. Render the generated PDFs and decks before release; the report generator rejects missing, corrupt, oversized, and unsupported page-context image payloads rather than embedding them.
 
 ## Work remaining before a shared release
 

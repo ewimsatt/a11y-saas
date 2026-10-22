@@ -1,37 +1,24 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import { prisma } from '@a11y/db';
 import { publicFailureReason } from '@a11y/shared';
 import { EVIDENCE_DIR } from '../paths';
-import { reportAssessment, type Coverage } from './coverage';
+import type { Coverage } from './coverage';
+import { processScreenshotFile } from './image';
 import {
-  countBySeverity,
-  countByStatus,
-  computeScore,
-  summarizeRules,
-  SEVERITY_ORDER,
-  type Severity,
-  type FindingStatus,
-  type RuleSummary
-} from './stats';
+  deriveReportFinality,
+  findComparablePriorScan,
+  reportCoverageLabel,
+  selectScreenshotPageIds
+} from './scope';
+import { countBySeverity, countByStatus, type FindingStatus, type Severity } from './stats';
+import { groupFindings, isActionableFinding, type FindingForQuality, type FindingGroup } from './quality';
 
-// Caps keep PDF size and deck length sane for large scans.
-const MAX_SCREENSHOT_PAGES = 8;
-const MAX_FINDINGS_PER_SEVERITY = 25;
-const MAX_SNIPPET_LENGTH = 400;
+const MAX_SCREENSHOT_PAGES = 2;
+export const COMPARISON_SCAN_LIMIT = 25;
 
-export type ReportFinding = {
-  id: string;
-  severity: Severity;
-  status: FindingStatus;
-  ruleId: string;
-  message: string;
-  selector: string | null;
-  pageUrl: string;
-  domSnippet: string | null;
-  failureSummary: string | null;
-};
+type Image = { base64: string; mime: 'image/png' | 'image/jpeg' };
 
+export type ReportFinding = FindingForQuality;
 export type ReportPage = {
   id: string;
   url: string;
@@ -41,48 +28,54 @@ export type ReportPage = {
   responseStatus: number | null;
   error: string | null;
   findingCount: number;
-  screenshotBase64: string | null;
+  screenshot: Image | null;
 };
-
 export type ReportData = {
   project: { name: string; baseUrl: string };
-  scan: { id: string; status: string; coverage: Coverage; startedAt: Date | null; completedAt: Date | null };
+  scan: {
+    id: string;
+    status: string;
+    coverage: Coverage;
+    startedAt: Date | null;
+    completedAt: Date | null;
+    isFinal: boolean;
+  };
   generatedAt: Date;
-  coverage: { requestedPages: number; analyzedPages: number; failedPages: number; label: string };
+  coverage: {
+    requestedPages: number;
+    analyzedPages: number;
+    failedPages: number;
+    pendingPages: number;
+    label: string;
+  };
   totals: {
     findings: number;
+    actionableFindings: number;
+    uniqueRules: number;
+    affectedPages: number;
     bySeverity: Record<Severity, number>;
     byStatus: Record<FindingStatus, number>;
   };
-  score: number | null;
-  grade: 'A' | 'B' | 'C' | 'D' | 'F' | null;
-  topRules: RuleSummary[];
-  findingsBySeverity: Array<{ severity: Severity; findings: ReportFinding[]; omitted: number }>;
+  findingGroups: FindingGroup[];
+  actionableGroups: FindingGroup[];
+  findings: ReportFinding[];
   pages: ReportPage[];
-  comparison: {
-    prevScanId: string;
-    prevCompletedAt: Date | null;
-    prevTotal: number;
-    fixed: number;
-    regressed: number;
-    prevCoverage: Coverage;
-  } | null;
+  comparison: { prevScanId: string; prevCompletedAt: Date | null; prevTotal: number; regressed: number } | null;
+  comparisonNote: string;
 };
 
-function truncate(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max)}…` : text;
-}
-
-async function loadScreenshot(pageId: string): Promise<string | null> {
-  try {
-    const buf = await fs.readFile(path.join(EVIDENCE_DIR, 'pages', `${pageId}.png`));
-    return buf.toString('base64');
-  } catch {
-    return null;
+async function loadScreenshot(pageId: string): Promise<Image | null> {
+  for (const extension of ['png', 'jpg', 'jpeg']) {
+    const image = await processScreenshotFile(path.join(EVIDENCE_DIR, 'pages', `${pageId}.${extension}`));
+    if (image) return image;
   }
+  return null;
 }
 
-export async function buildReportData(scanId: string): Promise<ReportData | null> {
+export async function buildReportData(
+  scanId: string,
+  options: { includeScreenshots?: boolean } = {}
+): Promise<ReportData | null> {
   const scan = await prisma.scan.findUnique({
     where: { id: scanId },
     include: { project: true, pages: true }
@@ -92,84 +85,99 @@ export async function buildReportData(scanId: string): Promise<ReportData | null
   const findings = await prisma.finding.findMany({
     where: { scanId },
     include: { rule: true, page: true, evidence: true },
-    orderBy: [{ severity: 'desc' }, { ruleId: 'asc' }]
+    orderBy: [{ severity: 'desc' }, { ruleId: 'asc' }, { id: 'asc' }]
   });
-
-  const reportFindings: ReportFinding[] = findings.map((f) => {
-    const meta = (f.evidence?.meta ?? {}) as { failureSummary?: string };
+  const reportFindings: ReportFinding[] = findings.map((finding) => {
+    const meta = (finding.evidence?.meta ?? {}) as { failureSummary?: string; targetIdentity?: unknown };
     return {
-      id: f.id,
-      severity: f.severity,
-      status: f.status,
-      ruleId: f.ruleId,
-      message: f.message,
-      selector: f.selector,
-      pageUrl: f.page.url,
-      domSnippet: f.evidence?.domSnippet ? truncate(f.evidence.domSnippet, MAX_SNIPPET_LENGTH) : null,
-      failureSummary: meta.failureSummary ? truncate(meta.failureSummary, MAX_SNIPPET_LENGTH) : null
+      id: finding.id,
+      pageId: finding.pageId,
+      fingerprint: finding.fingerprint,
+      targetIdentity: meta.targetIdentity ?? null,
+      evidenceMeta: finding.evidence?.meta ?? null,
+      severity: finding.severity,
+      status: finding.status,
+      ruleId: finding.ruleId,
+      message: finding.message,
+      selector: finding.selector,
+      pageUrl: finding.page.url,
+      domSnippet: finding.evidence?.domSnippet ?? null,
+      failureSummary: meta.failureSummary ?? null,
+      wcagRefs: finding.rule?.wcagRefs ?? []
     };
   });
-
-  const findingsBySeverity = SEVERITY_ORDER.map((severity) => {
-    const all = reportFindings.filter((f) => f.severity === severity);
-    return {
-      severity,
-      findings: all.slice(0, MAX_FINDINGS_PER_SEVERITY),
-      omitted: Math.max(0, all.length - MAX_FINDINGS_PER_SEVERITY)
-    };
-  }).filter((group) => group.findings.length > 0);
 
   const findingCountByPage = new Map<string, number>();
-  for (const f of findings) {
-    findingCountByPage.set(f.pageId, (findingCountByPage.get(f.pageId) ?? 0) + 1);
+  for (const finding of findings) {
+    findingCountByPage.set(finding.pageId, (findingCountByPage.get(finding.pageId) ?? 0) + 1);
   }
-  const pages: ReportPage[] = await Promise.all(
-    scan.pages.map(async (p, index) => ({
-      id: p.id,
-      url: p.url,
-      title: p.title,
-      crawled: p.outcome === 'ANALYZED',
-      outcome: p.outcome,
-      responseStatus: p.status,
-      error: p.error ? publicFailureReason(p.error) : null,
-      findingCount: findingCountByPage.get(p.id) ?? 0,
-      screenshotBase64: index < MAX_SCREENSHOT_PAGES ? await loadScreenshot(p.id) : null
-    }))
-  );
+  const pageFacts = scan.pages.map((page) => ({
+      id: page.id,
+      url: page.url,
+      title: page.title,
+      crawled: page.outcome === 'ANALYZED',
+      outcome: page.outcome,
+      responseStatus: page.status,
+      error: page.error ? publicFailureReason(page.error) : null,
+      findingCount: findingCountByPage.get(page.id) ?? 0,
+      screenshot: null as Image | null
+    }));
+  const screenshotCandidates = options.includeScreenshots
+    ? selectScreenshotPageIds(pageFacts, pageFacts.length)
+    : [];
+  const screenshotByPage = new Map<string, Image>();
+  for (const pageId of screenshotCandidates) {
+    if (screenshotByPage.size >= MAX_SCREENSHOT_PAGES) break;
+    const screenshot = await loadScreenshot(pageId);
+    if (screenshot) screenshotByPage.set(pageId, screenshot);
+  }
+  const pages = pageFacts.map((page) => ({
+    ...page,
+    screenshot: screenshotByPage.get(page.id) ?? null
+  }));
 
+  const isFinal = deriveReportFinality(scan.status, scan.coverage, scan.pages);
   let comparison: ReportData['comparison'] = null;
-  if (scan.coverage === 'COMPLETE') {
-    const prevScan = await prisma.scan.findFirst({
+  let comparisonNote = 'Comparison omitted because this report is provisional.';
+  if (isFinal) {
+    const candidates = await prisma.scan.findMany({
       where: {
+        id: { not: scan.id },
         projectId: scan.projectId,
         status: 'completed',
         coverage: 'COMPLETE',
-        completedAt: { lt: scan.startedAt ?? new Date() }
+        completedAt: scan.startedAt
+          ? { lt: scan.startedAt }
+          : scan.completedAt
+            ? { lt: scan.completedAt }
+            : { not: null }
       },
-      orderBy: { completedAt: 'desc' }
+      include: { pages: { select: { id: true, url: true, outcome: true } } },
+      orderBy: { completedAt: 'desc' },
+      take: COMPARISON_SCAN_LIMIT
     });
-    if (prevScan) {
-      const [prevTotal, fixed, regressed] = await Promise.all([
-        prisma.finding.count({ where: { scanId: prevScan.id } }),
-        prisma.finding.count({ where: { scanId: prevScan.id, status: 'FIXED' } }),
+    const previous = findComparablePriorScan(
+      scan.pages.map((page) => page.url),
+      candidates.filter((candidate) =>
+        deriveReportFinality(candidate.status, candidate.coverage, candidate.pages)
+      )
+    );
+    comparisonNote = `Comparison searched the ${COMPARISON_SCAN_LIMIT} most recent earlier completed COMPLETE scans and requires an identical normalized requested URL set.`;
+    if (previous) {
+      const [prevTotal, regressed] = await Promise.all([
+        prisma.finding.count({ where: { scanId: previous.id } }),
         prisma.finding.count({ where: { scanId, status: 'REGRESSED' } })
       ]);
-      comparison = {
-        prevScanId: prevScan.id,
-        prevCompletedAt: prevScan.completedAt,
-        prevTotal,
-        fixed,
-        regressed,
-        prevCoverage: 'COMPLETE'
-      };
+      comparison = { prevScanId: previous.id, prevCompletedAt: previous.completedAt, prevTotal, regressed };
+    } else {
+      comparisonNote = `Comparison omitted: no identical normalized requested URL set was found among the ${COMPARISON_SCAN_LIMIT} most recent earlier completed COMPLETE scans.`;
     }
   }
 
-  const rawScore = computeScore(reportFindings);
-  const assessment = reportAssessment(scan.coverage, rawScore);
-  const analyzedPages = scan.pages.filter((page) => page.outcome === 'ANALYZED').length;
-  const failedPages = scan.pages.filter((page) => page.outcome === 'FAILED').length;
-
+  const analyzedPages = pages.filter((page) => page.outcome === 'ANALYZED').length;
+  const failedPages = pages.filter((page) => page.outcome === 'FAILED').length;
+  const pendingPages = pages.filter((page) => page.outcome === 'PENDING').length;
+  const findingGroups = groupFindings(reportFindings);
   return {
     project: { name: scan.project.name, baseUrl: scan.project.baseUrl },
     scan: {
@@ -177,20 +185,30 @@ export async function buildReportData(scanId: string): Promise<ReportData | null
       status: scan.status,
       coverage: scan.coverage,
       startedAt: scan.startedAt,
-      completedAt: scan.completedAt
+      completedAt: scan.completedAt,
+      isFinal
     },
     generatedAt: new Date(),
-    coverage: { requestedPages: scan.pages.length, analyzedPages, failedPages, label: assessment.label },
+    coverage: {
+      requestedPages: pages.length,
+      analyzedPages,
+      failedPages,
+      pendingPages,
+      label: reportCoverageLabel(isFinal, scan.coverage)
+    },
     totals: {
-      findings: findings.length,
+      findings: reportFindings.length,
+      actionableFindings: reportFindings.filter(isActionableFinding).length,
+      uniqueRules: new Set(reportFindings.map((finding) => finding.ruleId)).size,
+      affectedPages: new Set(reportFindings.map((finding) => finding.pageUrl)).size,
       bySeverity: countBySeverity(reportFindings),
       byStatus: countByStatus(reportFindings)
     },
-    score: assessment.score,
-    grade: assessment.grade,
-    topRules: summarizeRules(findings).slice(0, 10),
-    findingsBySeverity,
+    findingGroups,
+    actionableGroups: findingGroups.filter((group) => group.actionableOccurrences > 0),
+    findings: reportFindings,
     pages,
-    comparison
+    comparison,
+    comparisonNote
   };
 }
