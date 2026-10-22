@@ -109,7 +109,7 @@ const selectors = issues.issues.map((issue) => issue.selector).join(' ');
 if (!selectors.includes('.first-bad') || !selectors.includes('.second-bad')) fail(`missing node-specific evidence: ${selectors}`);
 if (partial.status !== 'completed' || partial.coverage !== 'PARTIAL') fail(`partial scan was not labeled partial: ${JSON.stringify(partial)}`);
 if (!partial.pages.some((page) => page.outcome === 'FAILED' && page.status === 503)) fail(`HTTP failure was not retained: ${JSON.stringify(partial.pages)}`);
-if (!report.includes('PARTIAL coverage') || !report.includes('no score or grade is issued')) fail('partial report issued an unqualified assessment');
+if (!report.includes('PARTIAL coverage') || !report.includes('No final assessment or comparison is issued')) fail('partial report issued an unqualified assessment');
 console.log(JSON.stringify({ clean: { status: clean.status, coverage: clean.coverage, findings: clean._count.findings }, violation: { findings: violation._count.findings, selectors }, partial: { status: partial.status, coverage: partial.coverage, pages: partial.pages.map(({ outcome, status }) => ({ outcome, status })) } }, null, 2));
 NODE
 
@@ -125,6 +125,6 @@ const [scanRaw, html] = process.argv.slice(2);
 const scan = JSON.parse(scanRaw);
 if (scan.status !== 'failed' || scan.coverage !== 'FAILED') throw new Error(`missing-browser scan did not fail honestly: ${scanRaw}`);
 if (!scan.pages.length || scan.pages.some((page) => page.outcome !== 'FAILED' || !page.error?.includes('Page analysis failed'))) throw new Error(`missing-browser pages lacked controlled failure truth: ${scanRaw}`);
-if (!html.includes('FAILED') || !html.includes('not graded') || html.includes('Remote scanner browser is unavailable')) throw new Error('missing-browser HTML report was misleading or leaked sidecar internals');
+if (!html.includes('FAILED') || !html.includes('No final assessment or comparison is issued') || html.includes('Remote scanner browser is unavailable')) throw new Error('missing-browser HTML report was misleading or leaked sidecar internals');
 console.log(JSON.stringify({ missingBrowser: { status: scan.status, coverage: scan.coverage, pages: scan.pages.length } }));
 NODE

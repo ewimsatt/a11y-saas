@@ -25,7 +25,7 @@ export default function App() {
   const [newProjectUrl, setNewProjectUrl] = useState('')
   const [waiveReason, setWaiveReason] = useState('')
   const [waiveAttempted, setWaiveAttempted] = useState(false)
-  const [reportFormat, setReportFormat] = useState<'pdf' | 'pptx' | 'html'>('pdf')
+  const [reportFormat, setReportFormat] = useState<'pdf' | 'pptx' | 'html' | 'csv'>('pdf')
   const [msg, setMsg] = useState('')
   const [scansLoading, setScansLoading] = useState(false)
   const [issuesLoading, setIssuesLoading] = useState(false)
@@ -291,7 +291,7 @@ export default function App() {
         <button onClick={() => void loadIssues()} disabled={!visibleScan || issuesLoading}>{issuesLoading ? 'Loading Issues…' : 'Load Issues'}</button>
       </div>
       <div className="row"><input aria-label="New project name" value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} placeholder="New project name" /><input aria-label="New project base URL" value={newProjectUrl} onChange={(event) => setNewProjectUrl(event.target.value)} placeholder="https://example.com" /><button onClick={createProject}>Create Project</button></div>
-      <div className="row"><select aria-label="Report format" value={reportFormat} onChange={(event) => setReportFormat(event.target.value as 'pdf' | 'pptx' | 'html')}><option value="pdf">PDF document</option><option value="pptx">Slide deck (PowerPoint)</option><option value="html">HTML preview</option></select><button onClick={exportReport} disabled={!visibleScan}>Export Report</button></div>
+      <div className="row"><select aria-label="Report format" value={reportFormat} onChange={(event) => setReportFormat(event.target.value as 'pdf' | 'pptx' | 'html' | 'csv')}><option value="pdf">PDF technical document</option><option value="pptx">Executive slide deck (PowerPoint)</option><option value="csv">Full findings CSV</option><option value="html">HTML preview</option></select><button onClick={exportReport} disabled={!visibleScan}>Export Report</button></div>
     </section>
     <div className="grid">
       <section className="panel" aria-labelledby="issues-heading"><h2 id="issues-heading">Issues</h2>
