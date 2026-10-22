@@ -1,4 +1,4 @@
-import { QUEUES, publicFailureReason } from '@a11y/shared';
+import { QUEUES, checkScanTargetUrl, publicFailureReason } from '@a11y/shared';
 import { prisma } from '@a11y/db';
 import { createBrowserSession, ScanPageError, stableFingerprint } from '@a11y/scanner';
 import type { RawViolation } from '@a11y/scanner';
@@ -183,6 +183,9 @@ async function analyzeProcessor(job: Job<{ scanId: string }>) {
     try {
       for (const page of scan.pages) {
         try {
+          // Validate again at the actual browser-work boundary. This is an early
+          // literal guard; the isolated Smokescreen proxy owns DNS/connect policy.
+          if (!checkScanTargetUrl(page.url).ok) throw new ScanPageError('NETWORK_POLICY_REJECTED');
           const result = await session.scanPage(page.url);
           await fs.writeFile(path.join(pagesDir, `${page.id}.png`), result.screenshotBuffer);
           await prisma.page.update({

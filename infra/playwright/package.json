@@ -1,0 +1,9 @@
+{
+  "name": "friend-alpha-playwright-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.58.2"
+  }
+}

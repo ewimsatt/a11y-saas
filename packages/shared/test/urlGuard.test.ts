@@ -6,7 +6,7 @@ describe('checkScanTargetUrl', () => {
     'https://example.com',
     'http://example.com/path?q=1',
     'https://8.8.8.8',
-    'https://sub.domain.co.uk:8443/page'
+    'https://sub.domain.co.uk:443/page'
   ])('allows public URL %s', (url) => {
     expect(checkScanTargetUrl(url).ok).toBe(true);
   });
@@ -28,7 +28,9 @@ describe('checkScanTargetUrl', () => {
     'http://[fe80::1]',
     'http://foo.internal',
     'http://printer.local',
-    'http://app.localhost'
+    'http://app.localhost',
+    'https://example.com:8443',
+    'http://example.com:8080'
   ])('blocks %s', (url) => {
     expect(checkScanTargetUrl(url).ok).toBe(false);
   });
