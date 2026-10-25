@@ -7,6 +7,8 @@ const root = resolve(import.meta.dirname, '..')
 const scriptPath = process.env.ACCEPTANCE_HARNESS_SCRIPT || resolve(root, 'scripts/full-stack-acceptance.sh')
 const script = readFileSync(scriptPath, 'utf8')
 const compose = readFileSync(resolve(root, 'scripts/acceptance-compose.yml'), 'utf8')
+const worker = readFileSync(resolve(root, 'apps/worker/src/index.ts'), 'utf8')
+const scanRoutes = readFileSync(resolve(root, 'apps/api/src/routes/scans.ts'), 'utf8')
 
 test('acceptance harness uses disposable database credentials and queue namespace', () => {
   const password = compose.match(/^\s*POSTGRES_PASSWORD:\s*(\S+)\s*$/m)?.[1]
@@ -47,4 +49,15 @@ test('acceptance harness drives its loopback-only API from the disposable API co
   assert.match(compose, /HOST:\s*127\.0\.0\.1/)
   assert.doesNotMatch(compose, /^\s{4}ports:/m)
   assert.match(script, /compose exec -T api/)
+})
+
+test('atomic evidence fault is scoped to its selected scan and production has no fault or repair switch', () => {
+  assert.match(script, /CREATE FUNCTION acceptance_fail_evidence_insert\(\) RETURNS trigger/)
+  assert.match(script, /target_scan_id text := TG_ARGV\[0\]/)
+  assert.match(script, /WHERE id = NEW\."findingId" AND "scanId" = target_scan_id/)
+  assert.match(script, /EXECUTE FUNCTION acceptance_fail_evidence_insert\('\$1'\)/)
+  assert.match(script, /ATOMIC_BASELINE_SNAPSHOT=\$\(atomic_evidence snapshot "\$ATOMIC_BASELINE_SCAN" \| base64/)
+  assert.match(script, /atomic_evidence assert-faulted "\$ATOMIC_FAULTED_SCAN" "\$ATOMIC_BASELINE_SNAPSHOT"/)
+  assert.doesNotMatch(worker, /process\.env\.(?:EVIDENCE_FAULT|FAULT_INJECT|REPAIR_ORPHAN)/)
+  assert.doesNotMatch(scanRoutes, /\/repair|repair.*evidence/i)
 })

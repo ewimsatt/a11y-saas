@@ -65,6 +65,7 @@ chmod 0777 "$EVIDENCE_DIR"
 export BULLMQ_PREFIX FIXTURE_ORIGIN EVIDENCE_DIR PLAYWRIGHT_WS_TOKEN
 export ACCEPTANCE_EVIDENCE_DIR="$EVIDENCE_DIR"
 printf 'acceptance project=%s\n' "$PROJECT"
+node --test scripts/acceptance-harness-preflight.mjs
 compose up -d --build --wait
 
 api() {
@@ -76,11 +77,37 @@ seed() {
 add_failed_page() {
   compose exec -T api pnpm tsx /acceptance/acceptance-add-failed-page.ts "$@"
 }
+atomic_evidence() {
+  compose exec -T api pnpm tsx /app/apps/api/test/acceptanceAtomicEvidence.ts "$@"
+}
+inject_evidence_fault() {
+  compose exec -T postgres psql -v ON_ERROR_STOP=1 -U acceptance -d a11y <<SQL
+CREATE FUNCTION acceptance_fail_evidence_insert() RETURNS trigger LANGUAGE plpgsql AS \$\$
+DECLARE
+  target_scan_id text := TG_ARGV[0];
+BEGIN
+  IF EXISTS (SELECT 1 FROM "Finding" WHERE id = NEW."findingId" AND "scanId" = target_scan_id) THEN
+    RAISE EXCEPTION 'acceptance evidence insert fault';
+  END IF;
+  RETURN NEW;
+END;
+\$\$;
+CREATE TRIGGER acceptance_fail_evidence_insert BEFORE INSERT ON "Evidence"
+FOR EACH ROW EXECUTE FUNCTION acceptance_fail_evidence_insert('$1');
+SQL
+}
+remove_evidence_fault() {
+  compose exec -T postgres psql -v ON_ERROR_STOP=1 -U acceptance -d a11y <<'SQL'
+DROP TRIGGER IF EXISTS acceptance_fail_evidence_insert ON "Evidence";
+DROP FUNCTION IF EXISTS acceptance_fail_evidence_insert();
+SQL
+}
 
 SEED=$(seed)
 CLEAN_PROJECT=$(node -e 'console.log(JSON.parse(process.argv[1]).cleanProjectId)' "$SEED")
 VIOLATION_PROJECT=$(node -e 'console.log(JSON.parse(process.argv[1]).violationProjectId)' "$SEED")
 PARTIAL_PROJECT=$(node -e 'console.log(JSON.parse(process.argv[1]).partialProjectId)' "$SEED")
+ATOMIC_EVIDENCE_PROJECT=$(node -e 'console.log(JSON.parse(process.argv[1]).atomicEvidenceProjectId)' "$SEED")
 run_scan() { api POST "/scans/$1/run" '{}' | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).scanId))'; }
 poll() {
   local id=$1 body status
@@ -121,6 +148,48 @@ console.log(JSON.stringify({ clean: { status: clean.status, coverage: clean.cove
 NODE
 
 compose exec -T api node /acceptance/acceptance-evidence.mjs "$ISSUES"
+
+# The atomic project first establishes a completed OPEN baseline. The next scan
+# is created but not enqueued until its target-scoped disposable trigger exists.
+ATOMIC_BASELINE_SCAN=$(run_scan "$ATOMIC_EVIDENCE_PROJECT")
+ATOMIC_BASELINE=$(poll "$ATOMIC_BASELINE_SCAN")
+node - "$ATOMIC_BASELINE" <<'NODE'
+const scan = JSON.parse(process.argv[2]);
+if (scan.status !== 'completed' || scan.coverage !== 'COMPLETE' || scan._count.findings !== 3) throw new Error(`atomic baseline was not a complete three-finding scan: ${JSON.stringify(scan)}`);
+NODE
+ATOMIC_BASELINE_SNAPSHOT=$(atomic_evidence snapshot "$ATOMIC_BASELINE_SCAN" | base64 | tr -d '\n')
+ATOMIC_FAULTED_SCAN=$(atomic_evidence create-queued-scan "$ATOMIC_EVIDENCE_PROJECT")
+inject_evidence_fault "$ATOMIC_FAULTED_SCAN"
+atomic_evidence retry "$ATOMIC_FAULTED_SCAN"
+ATOMIC_FAULTED=$(poll "$ATOMIC_FAULTED_SCAN")
+node - "$ATOMIC_FAULTED" <<'NODE'
+const scan = JSON.parse(process.argv[2]);
+if (scan.status !== 'failed' || scan.coverage !== 'FAILED') throw new Error(`faulted second scan did not fail honestly: ${JSON.stringify(scan)}`);
+NODE
+atomic_evidence assert-faulted "$ATOMIC_FAULTED_SCAN" "$ATOMIC_BASELINE_SNAPSHOT"
+remove_evidence_fault
+atomic_evidence retry "$ATOMIC_FAULTED_SCAN"
+ATOMIC_RETRIED=$(poll "$ATOMIC_FAULTED_SCAN")
+node - "$ATOMIC_RETRIED" <<'NODE'
+const scan = JSON.parse(process.argv[2]);
+if (scan.status !== 'completed' || scan.coverage !== 'COMPLETE') throw new Error(`retried scan did not complete honestly: ${JSON.stringify(scan)}`);
+NODE
+LEGACY_SNAPSHOT=$(atomic_evidence delete-one-evidence "$ATOMIC_FAULTED_SCAN" | base64 | tr -d '\n')
+atomic_evidence retry "$ATOMIC_FAULTED_SCAN"
+ATOMIC_LEGACY_REPAIRED=$(poll "$ATOMIC_FAULTED_SCAN")
+node - "$ATOMIC_LEGACY_REPAIRED" <<'NODE'
+const scan = JSON.parse(process.argv[2]);
+if (scan.status !== 'completed' || scan.coverage !== 'COMPLETE') throw new Error(`legacy orphan repair did not complete honestly: ${JSON.stringify(scan)}`);
+NODE
+atomic_evidence assert-legacy-repair "$ATOMIC_FAULTED_SCAN" "$LEGACY_SNAPSHOT"
+REPAIRED_SNAPSHOT=$(atomic_evidence snapshot "$ATOMIC_FAULTED_SCAN" | base64 | tr -d '\n')
+atomic_evidence retry "$ATOMIC_FAULTED_SCAN"
+ATOMIC_IDEMPOTENT=$(poll "$ATOMIC_FAULTED_SCAN")
+node - "$ATOMIC_IDEMPOTENT" <<'NODE'
+const scan = JSON.parse(process.argv[2]);
+if (scan.status !== 'completed' || scan.coverage !== 'COMPLETE') throw new Error(`second legacy repair requeue did not complete honestly: ${JSON.stringify(scan)}`);
+NODE
+atomic_evidence assert-stable "$ATOMIC_FAULTED_SCAN" "$REPAIRED_SNAPSHOT"
 
 compose stop worker browser
 MISSING_BROWSER_SCAN=$(run_scan "$PARTIAL_PROJECT")

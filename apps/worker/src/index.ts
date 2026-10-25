@@ -1,9 +1,9 @@
 import { QUEUES, checkScanTargetUrl, publicFailureReason } from '@a11y/shared';
 import { prisma } from '@a11y/db';
 import { createBrowserSession, ScanPageError, stableFingerprint } from '@a11y/scanner';
-import type { RawViolation } from '@a11y/scanner';
 import { decideScanOutcome } from './scanOutcome.js';
 import { computeDiffUpdates, groupStatusUpdates } from './diff.js';
+import { dedupePageViolations } from './violationPersistence.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import Redis from 'ioredis';
@@ -28,13 +28,6 @@ const analyzeQueue = new Queue(QUEUES.analyze, queueOptions);
 const diffQueue = new Queue(QUEUES.diff, queueOptions);
 const evidenceQueue = new Queue(QUEUES.evidence, queueOptions);
 
-type Severity = 'CRITICAL' | 'SERIOUS' | 'MODERATE' | 'MINOR';
-const SEVERITY_BY_IMPACT: Record<string, Severity> = {
-  critical: 'CRITICAL',
-  serious: 'SERIOUS',
-  moderate: 'MODERATE',
-  minor: 'MINOR'
-};
 
 async function markScanFailed(scanId: string) {
   try {
@@ -68,80 +61,65 @@ async function crawlProcessor(job: Job<{ scanId: string }>) {
   }
 }
 
-type FindingRow = {
-  scanId: string;
-  pageId: string;
-  ruleId: string;
-  severity: Severity;
-  fingerprint: string;
-  selector: string | undefined;
-  message: string;
-};
-
 async function persistPageViolations(
   page: { id: string; scanId: string; url: string; title: string | null },
-  violations: RawViolation[]
+  violations: import('@a11y/scanner').RawViolation[]
 ) {
-  // Upsert each distinct rule once, then bulk-insert findings and evidence.
-  const ruleById = new Map(violations.map((v) => [v.ruleId, v]));
-  for (const [ruleId, v] of ruleById) {
-    await prisma.rule.upsert({
-      where: { id: ruleId },
-      create: { id: ruleId, title: v.message, wcagRefs: v.wcagRefs || [] },
-      update: {}
-    });
-  }
+  const rows = dedupePageViolations(page, violations, stableFingerprint);
+  if (rows.length === 0) return;
 
-  const rowsByFingerprint = new Map<string, { row: FindingRow; violation: RawViolation }>();
-  for (const violation of violations) {
-    const fingerprint = stableFingerprint({
-      ruleId: violation.ruleId,
-      pageUrl: page.url,
-      selector: violation.selector,
-      targetIdentity: violation.targetIdentity,
-      message: violation.message
+  // All database writes are bounded by MAX_PAGE_VIOLATIONS. The transaction
+  // atomically creates missing rules/findings/evidence and repairs legacy
+  // finding rows that have no evidence without mutating existing captures.
+  await prisma.$transaction(async (tx) => {
+    await tx.rule.createMany({
+      data: [...new Map(rows.map(({ violation }) => [violation.ruleId, violation])).values()].map((violation) => ({
+        id: violation.ruleId,
+        title: violation.message,
+        wcagRefs: violation.wcagRefs || []
+      })),
+      skipDuplicates: true
     });
-    if (rowsByFingerprint.has(fingerprint)) continue;
-    rowsByFingerprint.set(fingerprint, {
-      violation,
-      row: {
-        scanId: page.scanId,
-        pageId: page.id,
-        ruleId: violation.ruleId,
-        severity: SEVERITY_BY_IMPACT[violation.impact ?? ''] ?? 'MODERATE',
-        fingerprint,
-        selector: violation.selector,
-        message: violation.message
+    const fingerprints = rows.map(({ row }) => row.fingerprint);
+    const existing = await tx.finding.findMany({
+      where: { scanId: page.scanId, fingerprint: { in: fingerprints } },
+      select: { id: true, fingerprint: true, pageId: true }
+    });
+    for (const finding of existing) {
+      if (finding.pageId !== page.id) {
+        throw new Error(`Refusing cross-page evidence repair for finding ${finding.id}`);
       }
+    }
+    const existingFingerprints = new Set(existing.map((finding) => finding.fingerprint));
+    const missingRows = rows.filter(({ row }) => !existingFingerprints.has(row.fingerprint));
+    if (missingRows.length) {
+      await tx.finding.createMany({ data: missingRows.map(({ row }) => row) });
+    }
+    const findings = await tx.finding.findMany({
+      where: { scanId: page.scanId, fingerprint: { in: fingerprints } },
+      include: { evidence: { select: { id: true } } }
     });
-  }
-  if (rowsByFingerprint.size === 0) return;
-
-  // skipDuplicates makes re-runs idempotent: findings from a previous attempt
-  // are left untouched and get no duplicate evidence rows.
-  const created = await prisma.finding.createManyAndReturn({
-    data: [...rowsByFingerprint.values()].map((e) => e.row),
-    skipDuplicates: true,
-    select: { id: true, fingerprint: true }
-  });
-  if (created.length === 0) return;
-
-  await prisma.evidence.createMany({
-    data: created.map((finding) => {
-      const violation = rowsByFingerprint.get(finding.fingerprint)?.violation;
+    if (findings.length !== rows.length) throw new Error(`Finding persistence was incomplete for page ${page.id}`);
+    for (const finding of findings) {
+      if (finding.pageId !== page.id) throw new Error(`Refusing cross-page evidence repair for finding ${finding.id}`);
+    }
+    const violationByFingerprint = new Map(rows.map(({ row, violation }) => [row.fingerprint, violation]));
+    const missingEvidence = findings.filter((finding) => !finding.evidence).map((finding) => {
+      const violation = violationByFingerprint.get(finding.fingerprint);
+      if (!violation) throw new Error(`Missing source violation for finding ${finding.id}`);
       return {
         findingId: finding.id,
         screenshot: `pages/${page.id}.png`,
-        domSnippet: violation?.domSnippet ?? '',
+        domSnippet: violation.domSnippet ?? '',
         meta: {
           title: page.title,
           url: page.url,
-          ...(violation?.failureSummary && { failureSummary: violation.failureSummary }),
-          ...(violation?.targetIdentity && { targetIdentity: violation.targetIdentity })
+          ...(violation.failureSummary && { failureSummary: violation.failureSummary }),
+          targetIdentity: violation.targetIdentity
         }
       };
-    }),
-    skipDuplicates: true
+    });
+    if (missingEvidence.length) await tx.evidence.createMany({ data: missingEvidence });
   });
 }
 
@@ -286,6 +264,12 @@ async function diffProcessor(job: Job<{ scanId: string }>) {
 async function evidenceProcessor(job: Job<{ scanId: string }>) {
   const { scanId } = job.data;
   try {
+    const orphanedFindings = await prisma.finding.count({
+      where: { scanId, evidence: { is: null } }
+    });
+    if (orphanedFindings !== 0) {
+      throw new Error(`Refusing completion for scan ${scanId}: ${orphanedFindings} findings lack evidence`);
+    }
     await prisma.scan.update({
       where: { id: scanId },
       data: { status: 'completed', completedAt: new Date() }
