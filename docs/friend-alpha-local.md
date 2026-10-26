@@ -4,31 +4,46 @@ This is a one-machine single-user alpha. Do not bind it to a LAN interface, expo
 
 The scanner worker has no local browser fallback. It connects only to the internal Playwright Chromium sidecar, whose HTTP(S) traffic is forced through Smokescreen. Only Smokescreen joins the outbound Docker network. Browser and proxy ports are never published.
 
+## Hand a source bundle to one friend
+
+Send a source bundle only to a person who understands and accepts this local-only boundary. The bundle is not a release, does not include credentials or alpha environments, and must not be uploaded to a file host, deployed, or unpacked onto a shared machine.
+
+From a clean, reviewed checkout, create the archive **outside** that checkout so the command can refuse accidental self-inclusion and replacement:
+
+```sh
+pnpm alpha:bundle ../a11y-saas-friend-alpha.tgz
+```
+
+The command prints the archive path and SHA-256 checksum. Before sharing, inspect the exact archive yourself:
+
+```sh
+tar -tzf ../a11y-saas-friend-alpha.tgz
+shasum -a 256 ../a11y-saas-friend-alpha.tgz
+```
+
+It packages tracked source while excluding `.env*`, `node_modules`, `.git`, `evidence`, build/cache outputs, and generated alpha environments. It refuses an existing destination instead of overwriting it. A recipient should extract it into a new local directory, inspect it, and then run the synthetic setup below. The first safe preparation step is `pnpm install --frozen-lockfile`; it does not start Docker or scan a site.
+
 ## Fresh synthetic setup
 
-Prerequisites: Node 22, pnpm, Docker/Colima, and synthetic local data only.
+Prerequisites: Node 22, pnpm, a working Docker context, and synthetic local data only. The commands below use your current Docker context. If you use Colima and it is not already your active context, set `DOCKER_HOST="unix://${HOME}/.colima/default/docker.sock"` in your shell before running them. Do not copy another person's absolute Docker socket path.
 
 ```sh
 cd /path/to/a11y-saas
 pnpm install --frozen-lockfile
 pnpm alpha:env .env.alpha
-DOCKER_HOST=unix:///Users/ewimsatt/.colima/default/docker.sock \
-  docker compose --env-file .env.alpha -f docker-compose.alpha.yml up -d postgres redis
-DOCKER_HOST=unix:///Users/ewimsatt/.colima/default/docker.sock \
-  docker compose --env-file .env.alpha -f docker-compose.alpha.yml run --rm migrate
-DOCKER_HOST=unix:///Users/ewimsatt/.colima/default/docker.sock \
-  docker compose --env-file .env.alpha -f docker-compose.alpha.yml up --build
+docker compose --env-file .env.alpha -f docker-compose.alpha.yml up -d postgres redis
+docker compose --env-file .env.alpha -f docker-compose.alpha.yml run --rm migrate
+docker compose --env-file .env.alpha -f docker-compose.alpha.yml up --build
 ```
 
 `alpha:env` creates a fresh 256-bit browser-control token and unique local database password in an uncommitted file with mode 0600. It refuses to overwrite an existing file. Do not commit, print, or share `.env.alpha`; the token is part of the sidecar WebSocket endpoint.
 
-The API is loopback-only at `http://127.0.0.1:3001`. Run the local web UI separately if wanted, pointed at that loopback API. The browser-sidecar and Smokescreen services have no host ports.
+The Compose file uses the dedicated `a11y-friend-alpha` project namespace, so its `down --volumes` command targets only this alpha's containers, networks, and volumes. The API is loopback-only at `http://127.0.0.1:3001`. Run the local web UI separately if wanted, pointed at that loopback API. The browser-sidecar and Smokescreen services have no host ports. The API reads the worker's local evidence volume read-only, so screenshots and report evidence remain available within this one alpha project.
 
 Stop only this alpha project when finished:
 
 ```sh
-DOCKER_HOST=unix:///Users/ewimsatt/.colima/default/docker.sock \
-  docker compose --env-file .env.alpha -f docker-compose.alpha.yml down --volumes
+docker compose --env-file .env.alpha -f docker-compose.alpha.yml down --volumes
 rm .env.alpha
 ```
 

@@ -10,7 +10,8 @@
     "test:acceptance": "scripts/full-stack-acceptance.sh",
     "test:ui": "pnpm --filter @a11y/web build && node scripts/ui-acceptance.mjs",
     "test:scanner-egress": "node scripts/test-scanner-egress.mjs",
-    "alpha:env": "node scripts/create-alpha-env.mjs"
+    "alpha:env": "node scripts/create-alpha-env.mjs",
+    "alpha:bundle": "node scripts/create-friend-alpha-bundle.mjs"
   },
   "dependencies": {
     "@axe-core/playwright": "^4.11.1",

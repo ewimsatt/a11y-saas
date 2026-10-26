@@ -8,7 +8,7 @@
 
 The application combines a React review console, a Fastify API, and a Playwright/axe-core scanning pipeline. It is more than a scanner endpoint: it keeps project and scan history, records which pages were actually analyzed, supports finding triage and waivers, and produces PDF, PowerPoint, and HTML reports.
 
-**Current status: local-only alpha.** The core workflow is implemented, but this is not a hosted, multi-tenant SaaS release. Authentication, enforced scanner network isolation, and production storage/recovery remain unfinished. See [status and boundaries](#status-and-boundaries) before running it.
+**Current status: local-only alpha.** The core workflow is implemented, including a local scanner egress sidecar, but this is not a hosted, multi-tenant SaaS release. Authentication, durable production storage/recovery, and broader release hardening remain unfinished. See [status and boundaries](#status-and-boundaries) before running it.
 
 ## What you can do
 
@@ -50,7 +50,7 @@ Scores on complete reports are internal heuristics, not WCAG conformance measure
 
 - **No authentication or tenant isolation.** The API enforces loopback binding; the web dev server and Compose service ports default to loopback too. Do not expose them through a public tunnel, reverse proxy, shared server, or LAN binding.
 - **CORS is not access control.** Local browser-origin restrictions do not authenticate a user or protect data from other local processes.
-- **URL validation is not browser network isolation.** Input guards reject common unsafe targets, but enforced egress controls covering DNS, redirects, and subresources are not implemented. Do not treat the scanner as a safe service for arbitrary untrusted URLs.
+- **URL validation is only one scanner control.** Input guards reject common unsafe targets, and the local Playwright sidecar sends browser HTTP(S) traffic through Smokescreen while browser and proxy ports remain unpublished. This local-alpha gate does not make the scanner a hostile-site sandbox or a safe public service for arbitrary untrusted URLs.
 - **Evidence is local.** Screenshots live under `evidence/` by default and are served by the API. MinIO is included in Compose, but S3/MinIO uploads are not connected to the evidence pipeline.
 - **Waivers are limited.** A reason and optional expiry timestamp are persisted on the finding. Automatic expiry enforcement, carry-forward across scans, and a full waiver-management workflow are not implemented.
 - **Queue recovery is not production-ready.** BullMQ handles asynchronous stages, but retry/dead-letter operations and reconciliation of stranded scans still need work.
