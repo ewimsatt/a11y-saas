@@ -386,6 +386,7 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   Project: 'Project',
   Scan: 'Scan',
+  ScanDispatch: 'ScanDispatch',
   Page: 'Page',
   Rule: 'Rule',
   Finding: 'Finding',
@@ -405,7 +406,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "project" | "scan" | "page" | "rule" | "finding" | "evidence"
+    modelProps: "project" | "scan" | "scanDispatch" | "page" | "rule" | "finding" | "evidence"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -554,6 +555,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ScanCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ScanCountAggregateOutputType> | number
+        }
+      }
+    }
+    ScanDispatch: {
+      payload: Prisma.$ScanDispatchPayload<ExtArgs>
+      fields: Prisma.ScanDispatchFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ScanDispatchFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanDispatchPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ScanDispatchFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanDispatchPayload>
+        }
+        findFirst: {
+          args: Prisma.ScanDispatchFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanDispatchPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ScanDispatchFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanDispatchPayload>
+        }
+        findMany: {
+          args: Prisma.ScanDispatchFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanDispatchPayload>[]
+        }
+        create: {
+          args: Prisma.ScanDispatchCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanDispatchPayload>
+        }
+        createMany: {
+          args: Prisma.ScanDispatchCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ScanDispatchCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanDispatchPayload>[]
+        }
+        delete: {
+          args: Prisma.ScanDispatchDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanDispatchPayload>
+        }
+        update: {
+          args: Prisma.ScanDispatchUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanDispatchPayload>
+        }
+        deleteMany: {
+          args: Prisma.ScanDispatchDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ScanDispatchUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ScanDispatchUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanDispatchPayload>[]
+        }
+        upsert: {
+          args: Prisma.ScanDispatchUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ScanDispatchPayload>
+        }
+        aggregate: {
+          args: Prisma.ScanDispatchAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateScanDispatch>
+        }
+        groupBy: {
+          args: Prisma.ScanDispatchGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ScanDispatchGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ScanDispatchCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ScanDispatchCountAggregateOutputType> | number
         }
       }
     }
@@ -907,11 +982,30 @@ export const ScanScalarFieldEnum = {
   projectId: 'projectId',
   status: 'status',
   coverage: 'coverage',
+  requestKey: 'requestKey',
+  requestDigest: 'requestDigest',
   startedAt: 'startedAt',
-  completedAt: 'completedAt'
+  completedAt: 'completedAt',
+  updatedAt: 'updatedAt'
 } as const
 
 export type ScanScalarFieldEnum = (typeof ScanScalarFieldEnum)[keyof typeof ScanScalarFieldEnum]
+
+
+export const ScanDispatchScalarFieldEnum = {
+  scanId: 'scanId',
+  jobId: 'jobId',
+  state: 'state',
+  attemptCount: 'attemptCount',
+  nextAttemptAt: 'nextAttemptAt',
+  lastAttemptAt: 'lastAttemptAt',
+  enqueuedAt: 'enqueuedAt',
+  lastErrorCode: 'lastErrorCode',
+  leaseUntil: 'leaseUntil',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ScanDispatchScalarFieldEnum = (typeof ScanDispatchScalarFieldEnum)[keyof typeof ScanDispatchScalarFieldEnum]
 
 
 export const PageScalarFieldEnum = {
@@ -1016,140 +1110,154 @@ export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof Json
  * Reference to a field of type 'String'
  */
 export type StringFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'String'>
-
+    
 
 
 /**
  * Reference to a field of type 'String[]'
  */
 export type ListStringFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'String[]'>
-
+    
 
 
 /**
  * Reference to a field of type 'DateTime'
  */
 export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
-
+    
 
 
 /**
  * Reference to a field of type 'DateTime[]'
  */
 export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
-
+    
 
 
 /**
  * Reference to a field of type 'ScanStatus'
  */
 export type EnumScanStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScanStatus'>
-
+    
 
 
 /**
  * Reference to a field of type 'ScanStatus[]'
  */
 export type ListEnumScanStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScanStatus[]'>
-
+    
 
 
 /**
  * Reference to a field of type 'ScanCoverage'
  */
 export type EnumScanCoverageFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScanCoverage'>
-
+    
 
 
 /**
  * Reference to a field of type 'ScanCoverage[]'
  */
 export type ListEnumScanCoverageFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScanCoverage[]'>
+    
 
+
+/**
+ * Reference to a field of type 'DispatchState'
+ */
+export type EnumDispatchStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DispatchState'>
+    
+
+
+/**
+ * Reference to a field of type 'DispatchState[]'
+ */
+export type ListEnumDispatchStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DispatchState[]'>
+    
 
 
 /**
  * Reference to a field of type 'Int'
  */
 export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
-
+    
 
 
 /**
  * Reference to a field of type 'Int[]'
  */
 export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
-
+    
 
 
 /**
  * Reference to a field of type 'PageOutcome'
  */
 export type EnumPageOutcomeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PageOutcome'>
-
+    
 
 
 /**
  * Reference to a field of type 'PageOutcome[]'
  */
 export type ListEnumPageOutcomeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PageOutcome[]'>
-
+    
 
 
 /**
  * Reference to a field of type 'Severity'
  */
 export type EnumSeverityFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Severity'>
-
+    
 
 
 /**
  * Reference to a field of type 'Severity[]'
  */
 export type ListEnumSeverityFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Severity[]'>
-
+    
 
 
 /**
  * Reference to a field of type 'FindingStatus'
  */
 export type EnumFindingStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'FindingStatus'>
-
+    
 
 
 /**
  * Reference to a field of type 'FindingStatus[]'
  */
 export type ListEnumFindingStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'FindingStatus[]'>
-
+    
 
 
 /**
  * Reference to a field of type 'Json'
  */
 export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
-
+    
 
 
 /**
  * Reference to a field of type 'QueryMode'
  */
 export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
-
+    
 
 
 /**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
-
+    
 
 
 /**
  * Reference to a field of type 'Float[]'
  */
 export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
-
+    
 
 /**
  * Batch Payload for updateMany & deleteMany & createMany
@@ -1248,6 +1356,7 @@ export type PrismaClientOptions = ({
 export type GlobalOmitConfig = {
   project?: Prisma.ProjectOmit
   scan?: Prisma.ScanOmit
+  scanDispatch?: Prisma.ScanDispatchOmit
   page?: Prisma.PageOmit
   rule?: Prisma.RuleOmit
   finding?: Prisma.FindingOmit

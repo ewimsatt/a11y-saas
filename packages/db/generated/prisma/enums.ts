@@ -42,6 +42,16 @@ export const PageOutcome = {
 export type PageOutcome = (typeof PageOutcome)[keyof typeof PageOutcome]
 
 
+export const DispatchState = {
+  PENDING: 'PENDING',
+  DISPATCHING: 'DISPATCHING',
+  ENQUEUED: 'ENQUEUED',
+  DEAD: 'DEAD'
+} as const
+
+export type DispatchState = (typeof DispatchState)[keyof typeof DispatchState]
+
+
 export const Severity = {
   MINOR: 'MINOR',
   MODERATE: 'MODERATE',

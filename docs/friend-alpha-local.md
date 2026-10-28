@@ -53,6 +53,14 @@ Only `http:` or `https:` URLs on ports 80 or 443 are supported. Literal loopback
 
 Failures to connect to the browser sidecar, proxy, or a target become failed or partial scan outcomes. They do not become clean, fixed, or complete scan results.
 
+## Durable scan intake and local queue recovery
+
+`POST /scans/:projectId/run` accepts an optional `Idempotency-Key` header. Replaying the same key with the same project and exact requested URL payload returns the original durable scan; reusing it for different input returns `409`. The scan, requested pages, and PostgreSQL dispatch intent are committed in one transaction before the API returns `202`.
+
+The API makes a best-effort Redis enqueue after that commit. A temporary Redis error still returns the accepted `queued` scan and leaves its intent `PENDING`; the failed in-process queue instance is retired so a later due attempt can create a fresh bounded Redis connection. The local API dispatcher retries due intents with deterministic `<scanId>-crawl` job IDs and retained BullMQ jobs. Redis commands use a short connection/request bound, so an unavailable local Redis does not hold an HTTP request open indefinitely.
+
+This is deliberately a bounded alpha recovery slice, not HITLIST 07 completion: recovery runs only while the local API process is running and again when it starts. A continuously unavailable Redis leaves the durable intent queued for later recovery rather than claiming the scan failed, and this slice does not yet reconcile later worker stages, terminalize exhausted dispatch attempts, or provide an independent scheduler. Processing remains at-least-once.
+
 ## Evidence commands
 
 ```sh

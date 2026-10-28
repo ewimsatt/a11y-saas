@@ -1,16 +1,19 @@
 import { prisma } from '@a11y/db';
 import { closeQueues } from './lib/queues';
+import { startScanDispatcher } from './lib/scanDispatch';
 import { createApp, resolveRuntimeConfig } from './app';
 
 async function main() {
   const config = resolveRuntimeConfig();
   const app = await createApp(config);
 
+  const stopDispatcher = startScanDispatcher();
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
     app.log.info({ signal }, 'shutting down');
+    stopDispatcher();
     await app.close();
     await closeQueues();
     await prisma.$disconnect();

@@ -53,6 +53,7 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   Project: 'Project',
   Scan: 'Scan',
+  ScanDispatch: 'ScanDispatch',
   Page: 'Page',
   Rule: 'Rule',
   Finding: 'Finding',
@@ -90,11 +91,30 @@ export const ScanScalarFieldEnum = {
   projectId: 'projectId',
   status: 'status',
   coverage: 'coverage',
+  requestKey: 'requestKey',
+  requestDigest: 'requestDigest',
   startedAt: 'startedAt',
-  completedAt: 'completedAt'
+  completedAt: 'completedAt',
+  updatedAt: 'updatedAt'
 } as const
 
 export type ScanScalarFieldEnum = (typeof ScanScalarFieldEnum)[keyof typeof ScanScalarFieldEnum]
+
+
+export const ScanDispatchScalarFieldEnum = {
+  scanId: 'scanId',
+  jobId: 'jobId',
+  state: 'state',
+  attemptCount: 'attemptCount',
+  nextAttemptAt: 'nextAttemptAt',
+  lastAttemptAt: 'lastAttemptAt',
+  enqueuedAt: 'enqueuedAt',
+  lastErrorCode: 'lastErrorCode',
+  leaseUntil: 'leaseUntil',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ScanDispatchScalarFieldEnum = (typeof ScanDispatchScalarFieldEnum)[keyof typeof ScanDispatchScalarFieldEnum]
 
 
 export const PageScalarFieldEnum = {
