@@ -28,6 +28,11 @@ export type Project = Prisma.ProjectModel
  */
 export type Scan = Prisma.ScanModel
 /**
+ * Model ScanDispatch
+ * 
+ */
+export type ScanDispatch = Prisma.ScanDispatchModel
+/**
  * Model Page
  * 
  */

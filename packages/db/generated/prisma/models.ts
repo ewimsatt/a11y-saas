@@ -10,6 +10,7 @@
  */
 export type * from './models/Project.ts'
 export type * from './models/Scan.ts'
+export type * from './models/ScanDispatch.ts'
 export type * from './models/Page.ts'
 export type * from './models/Rule.ts'
 export type * from './models/Finding.ts'

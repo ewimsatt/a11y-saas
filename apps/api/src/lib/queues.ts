@@ -15,15 +15,36 @@ function queueOptions(activeConnection: Redis) {
 
 export function getCrawlQueue(): Queue {
   if (!crawlQueue) {
-    connection = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379');
+    connection = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
+      lazyConnect: true,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 1,
+      connectTimeout: 1_000,
+      retryStrategy: (attempt) => (attempt === 1 ? 100 : null)
+    });
     crawlQueue = new Queue(QUEUES.crawl, queueOptions(connection));
   }
   return crawlQueue;
 }
 
-export async function closeQueues(): Promise<void> {
-  await crawlQueue?.close();
-  await connection?.quit();
+/**
+ * Retire a queue that failed to reach Redis so the next due dispatch creates
+ * a fresh bounded connection in this API process.
+ */
+export function discardCrawlQueue(): void {
+  const staleQueue = crawlQueue;
+  const staleConnection = connection;
   crawlQueue = undefined;
   connection = undefined;
+  void staleQueue?.close().catch(() => undefined);
+  staleConnection?.disconnect(false);
+}
+
+export async function closeQueues(): Promise<void> {
+  const activeQueue = crawlQueue;
+  const activeConnection = connection;
+  crawlQueue = undefined;
+  connection = undefined;
+  await activeQueue?.close();
+  await activeConnection?.quit();
 }
