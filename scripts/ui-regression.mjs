@@ -14,8 +14,8 @@ mkdirSync(out, { recursive: true })
 const browser = await chromium.launch({ headless: true })
 const results = []
 const issues = [
-  { id: 'a1', severity: 'SERIOUS', status: 'OPEN', message: 'FIRST OWNED FIXTURE ISSUE', selector: '#first', rule: { id: 'label', title: 'Label', wcagRefs: ['wcag2a', 'wcag131'] } },
-  { id: 'a2', severity: 'SERIOUS', status: 'OPEN', message: 'SECOND OWNED FIXTURE ISSUE', selector: '#second', rule: { id: 'label', title: 'Label', wcagRefs: ['wcag2a', 'wcag131'] } }
+  { id: 'a1', severity: 'SERIOUS', impact: 'serious', status: 'OPEN', message: 'FIRST OWNED FIXTURE ISSUE', selector: '#first', rule: { id: 'label', title: 'Label', wcagRefs: ['wcag2a', 'wcag131'] } },
+  { id: 'a2', severity: 'SERIOUS', impact: 'serious', status: 'OPEN', message: 'SECOND OWNED FIXTURE ISSUE', selector: '#second', rule: { id: 'label', title: 'Label', wcagRefs: ['wcag2a', 'wcag131'] } }
 ]
 const deferred = () => {
   let release
@@ -62,7 +62,7 @@ async function scenario(name, test) {
     else if (path === '/scans/new-pa') data = { id: 'new-pa', status: 'completed', _count: { findings: 0 } }
     else if (/^\/issues\/a[12]\/evidence$/.test(path)) {
       const id = path.split('/')[2]
-      data = { issueId: id, domSnippet: `<div>evidence-${id}</div>`, meta: { url: `https://fixture.example/${id}`, failureSummary: `fix-${id}` } }
+      data = { issueId: id, domSnippet: `<div>evidence-${id}</div>`, meta: { url: `https://fixture.example/${id}`, failureSummary: `fix-${id}`, help: `How to fix ${id}`, helpUrl: `https://dequeuniversity.com/rules/axe/${id}` } }
     } else if (path === '/issues/a1/waive') data = { ok: true }
     await route.fulfill({ json: data, headers: { 'access-control-allow-origin': '*' } }).catch(() => {})
     mark(`FULFILLED ${key}`)
@@ -150,6 +150,23 @@ try {
   await scenario('wcag-dotted-filter', async (page) => {
     await page.getByRole('button', { name: 'Preset: WCAG 1.3.1', exact: true }).click()
     assert.equal(await page.getByText('FIRST OWNED FIXTURE ISSUE', { exact: true }).count(), 1, 'WCAG 1.3.1 preset must match actual axe wcag131 tags')
+  })
+  await scenario('wcag-filter-requires-an-exact-criterion', async (page) => {
+    await page.getByLabel('Filter by WCAG reference', { exact: true }).fill('1.3')
+    assert.equal(await page.getByText('FIRST OWNED FIXTURE ISSUE', { exact: true }).count(), 0, 'A partial criterion must not accidentally match raw axe tags')
+  })
+  await scenario('selected-evidence-shows-remediation-help-and-source', async (page) => {
+    await page.getByRole('button', { name: 'View evidence for serious issue: FIRST OWNED FIXTURE ISSUE', exact: true }).click()
+    await page.getByText('Rule: label — Label', { exact: true }).waitFor()
+    await page.getByText('Impact: serious', { exact: true }).waitFor()
+    await page.getByText('How to fix: How to fix a1', { exact: true }).waitFor()
+    await page.getByText('Automated findings are remediation guidance, not a compliance determination.', { exact: true }).waitFor()
+    const source = page.getByRole('link', { name: 'Axe rule help source', exact: true })
+    assert.equal(await source.getAttribute('href'), 'https://dequeuniversity.com/rules/axe/a1')
+    assert.equal(await source.getAttribute('target'), '_blank')
+    await page.getByLabel('Waive reason', { exact: true }).focus()
+    await page.keyboard.press('Shift+Tab')
+    assert.equal(await source.evaluate((element) => document.activeElement === element), true, 'Rule help link must be keyboard reachable from adjacent controls')
   })
   await scenario('evidence-response-race', async (page, state) => {
     state.hold('GET /issues/a1/evidence')
