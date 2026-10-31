@@ -4,6 +4,7 @@ import { prisma } from '@a11y/db';
 import { z } from 'zod';
 import { checkScanTargetUrl, publicFailureReason } from '@a11y/shared';
 import { errorMessage } from '../lib/errors';
+import { presentIssue } from '../lib/issuePresentation';
 import { dispatchScan } from '../lib/scanDispatch';
 
 const runScanSchema = z.object({
@@ -115,6 +116,6 @@ export async function scanRoutes(app: FastifyInstance) {
     const issues = await prisma.finding.findMany({
       where: { scanId: id, status: { not: 'WAIVED' } }, include: { rule: true, evidence: true }, orderBy: [{ severity: 'desc' }, { ruleId: 'asc' }]
     });
-    return { scanId: id, issues };
+    return { scanId: id, issues: issues.map(presentIssue) };
   });
 }

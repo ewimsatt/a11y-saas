@@ -4,7 +4,13 @@ const connect = vi.fn();
 const launch = vi.fn();
 vi.mock('playwright', () => ({ chromium: { connect, launch } }));
 
-import { createBrowserSession, toRawViolations } from '../src/axeAdapter';
+import { createBrowserSession, normalizeWcagCriteria, toRawViolations } from '../src/axeAdapter';
+
+describe('normalizeWcagCriteria', () => {
+  it('converts only raw axe success-criterion tags into dotted criteria', () => {
+    expect(normalizeWcagCriteria(['wcag131', 'wcag111', 'wcag2aa', 'best-practice', 'wcag999'])).toEqual(['1.3.1', '1.1.1']);
+  });
+});
 
 describe('toRawViolations', () => {
   it('retains every axe node with its own selector and DOM evidence', () => {

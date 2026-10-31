@@ -10,6 +10,10 @@ export type RawViolation = {
   /** Canonical, deterministic serialization of axe's structured target array. */
   targetIdentity: string;
   wcagRefs?: string[];
+  /** Dotted WCAG success criteria derived only from raw axe tags, if recognized. */
+  wcagCriteria?: string[];
+  help?: string;
+  helpUrl?: string;
   // Outer HTML of the first violating node, as reported by axe.
   domSnippet?: string;
   // axe's human-readable explanation of why the node failed.
@@ -37,6 +41,8 @@ type AxeViolation = {
   id: string;
   impact?: string | null;
   description: string;
+  help?: string;
+  helpUrl?: string;
   tags?: string[];
   nodes: Array<{
     target?: Array<string | string[]>;
@@ -54,6 +60,17 @@ function displaySelector(target: Array<string | string[]> | undefined): string |
   return flattened?.length ? flattened.join(' >> ') : undefined;
 }
 
+/**
+ * axe uses compact criterion tags such as wcag131. Only exact 3-digit tags
+ * are success criteria; broad conformance tags and unknown tags stay unmapped.
+ */
+export function normalizeWcagCriteria(tags: string[] | undefined): string[] {
+  return [...new Set((tags ?? []).flatMap((tag) => {
+    const match = /^wcag([1-4])(\d)(\d)$/i.exec(tag.trim());
+    return match ? [`${match[1]}.${match[2]}.${match[3]}`] : [];
+  }))];
+}
+
 export function toRawViolations(violations: AxeViolation[]): RawViolation[] {
   return violations.flatMap((v) =>
     v.nodes.map((node) => ({
@@ -63,6 +80,9 @@ export function toRawViolations(violations: AxeViolation[]): RawViolation[] {
       selector: displaySelector(node.target),
       targetIdentity: canonicalTarget(node.target),
       wcagRefs: v.tags?.filter((t) => t.startsWith('wcag')) || [],
+      wcagCriteria: normalizeWcagCriteria(v.tags),
+      help: v.help || undefined,
+      helpUrl: v.helpUrl || undefined,
       domSnippet: node.html || undefined,
       failureSummary: node.failureSummary || undefined
     }))

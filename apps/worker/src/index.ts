@@ -115,6 +115,8 @@ async function persistPageViolations(
           title: page.title,
           url: page.url,
           ...(violation.failureSummary && { failureSummary: violation.failureSummary }),
+          ...(violation.help && { help: violation.help }),
+          ...(violation.helpUrl && { helpUrl: violation.helpUrl }),
           targetIdentity: violation.targetIdentity
         }
       };

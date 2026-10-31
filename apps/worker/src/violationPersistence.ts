@@ -5,6 +5,9 @@ export type RawViolationInput = {
   selector?: string;
   targetIdentity: string;
   wcagRefs?: string[];
+  wcagCriteria?: string[];
+  help?: string;
+  helpUrl?: string;
   domSnippet?: string;
   failureSummary?: string;
 };

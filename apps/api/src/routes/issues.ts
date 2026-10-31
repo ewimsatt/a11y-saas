@@ -17,7 +17,7 @@ async function getEvidence(req: FastifyRequest, reply: FastifyReply) {
   if (!finding?.evidence) {
     return reply.code(404).send({ error: 'Evidence not found' });
   }
-  const evidenceMeta = (finding.evidence.meta ?? {}) as { failureSummary?: string };
+  const evidenceMeta = (finding.evidence.meta ?? {}) as { failureSummary?: string; help?: string; helpUrl?: string };
   return {
     issueId: id,
     screenshot: `/evidence/${finding.evidence.screenshot}`,
@@ -25,7 +25,9 @@ async function getEvidence(req: FastifyRequest, reply: FastifyReply) {
     meta: {
       title: finding.page?.title,
       url: finding.page?.url,
-      ...(evidenceMeta.failureSummary && { failureSummary: evidenceMeta.failureSummary })
+      ...(evidenceMeta.failureSummary && { failureSummary: evidenceMeta.failureSummary }),
+      ...(evidenceMeta.help && { help: evidenceMeta.help }),
+      ...(evidenceMeta.helpUrl && { helpUrl: evidenceMeta.helpUrl })
     }
   };
 }
