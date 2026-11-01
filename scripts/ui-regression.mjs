@@ -53,11 +53,13 @@ async function scenario(name, test) {
     mark(key)
     await holds.get(key)?.promise
     let data = {}
-    if (path === '/projects') data = [{ id: 'pa', name: 'Project A', baseUrl: 'https://a.example' }, { id: 'pb', name: 'Project B', baseUrl: 'https://b.example' }]
+    if (path === '/projects') data = [{ id: 'pa', name: 'Project A', baseUrl: 'https://a.example' }, { id: 'pb', name: 'Project B', baseUrl: 'https://b.example' }, { id: 'pc', name: 'Project C', baseUrl: 'https://c.example' }]
     else if (path === '/projects/pa/scans') data = { scans: [{ id: 'sa', status: 'completed' }] }
     else if (path === '/projects/pb/scans') data = { scans: [{ id: 'sb', status: 'completed' }] }
+    else if (path === '/projects/pc/scans') data = { scans: [{ id: 'sc', status: 'completed' }] }
     else if (path === '/scans/sa/issues') data = { scanId: 'sa', issues }
     else if (path === '/scans/sb/issues') data = { scanId: 'sb', issues }
+    else if (path === '/scans/sc/issues') data = { scanId: 'sc', issues: [] }
     else if (path === '/scans/pa/run') data = { scanId: 'new-pa' }
     else if (path === '/scans/new-pa') data = { id: 'new-pa', status: 'completed', _count: { findings: 0 } }
     else if (/^\/issues\/a[12]\/evidence$/.test(path)) {
@@ -304,6 +306,18 @@ try {
     state.release('POST /issues/a1/waive')
     await page.waitForFunction(() => document.querySelector('select[aria-label="Scan"] option[value="sb"]'))
     assert.equal(await page.getByText('fix-a1', { exact: true }).count(), 0, 'Late waiver completion cannot repopulate evidence for another scan')
+  })
+  await scenario('filters-do-not-mislabel-a-nonempty-scan-as-empty', async (page) => {
+    await page.getByLabel('Filter by severity', { exact: true }).selectOption('CRITICAL')
+    assert.equal(await page.getByText('FIRST OWNED FIXTURE ISSUE', { exact: true }).count(), 0, 'The filter should hide nonmatching rows')
+    assert.equal(await page.getByText('No issues found for this scan.', { exact: true }).count(), 0, 'A nonempty scan filtered to zero rows must not claim the scan has no issues')
+  })
+  await scenario('empty-scan-has-an-explicit-empty-state', async (page) => {
+    await page.getByLabel('Project', { exact: true }).selectOption('pc')
+    await page.waitForFunction(() => document.querySelector('select[aria-label="Scan"] option[value="sc"]'))
+    await page.getByLabel('Scan', { exact: true }).selectOption('sc')
+    await page.getByRole('button', { name: 'Load Issues', exact: true }).click()
+    await page.getByText('No issues found for this scan.', { exact: true }).waitFor()
   })
   await unmountDuringDelayedCreateScenario()
 } finally {
