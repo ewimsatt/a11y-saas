@@ -2,7 +2,9 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import sharp from 'sharp';
 import { afterEach, describe, expect, it } from 'vitest';
+import { chromium } from 'playwright';
 import { renderReportHtml } from '../src/lib/report/html';
 import { renderPdf } from '../src/lib/report/pdf';
 import { buildPptx } from '../src/lib/report/pptx';
@@ -185,12 +187,50 @@ it('renders observed contrast-pattern evidence without claiming shared root caus
   expect(text).toContain('1 eligible occurrence was not parsed');
 });
 
-it('labels screenshots as cropped top-of-page context rather than annotated evidence', () => {
+it('keeps a tall screenshot bottom marker reachable in HTML and the PDF export', async () => {
+  const bottomMarker = 'BOTTOM-OF-IMAGE-MARKER';
+  const tallScreenshot = await sharp({ create: { width: 600, height: 2400, channels: 3, background: '#f4f4f4' } })
+    .composite([{ input: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="120"><rect width="600" height="120" fill="#d00000"/><text x="24" y="75" fill="white" font-size="36">${bottomMarker}</text></svg>`), top: 2280, left: 0 }])
+    .png()
+    .toBuffer();
   const data = reportData();
-  data.pages[0]!.screenshot = { mime: 'image/jpeg', base64: '/9j/2Q==' };
+  data.pages[0]!.title = bottomMarker;
+  data.pages[0]!.screenshot = { mime: 'image/png', base64: tallScreenshot.toString('base64') };
   const html = renderReportHtml(data);
-  expect(html).toContain('cropped top-of-page context');
-  expect(html).toContain('not annotated problem evidence');
+
+  expect(html).toContain('Full-page screenshot context');
+  expect(html).toContain(bottomMarker);
+  expect(html).not.toContain('cropped top-of-page context');
+
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1000, height: 800 } });
+    await page.setContent(html, { waitUntil: 'load' });
+    const image = await page.locator('.shots img').evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      return { renderedHeight: rect.height, naturalHeight: (node as unknown as { naturalHeight: number }).naturalHeight };
+    });
+    expect(image.naturalHeight).toBe(2400);
+    expect(image.renderedHeight).toBeGreaterThan(1000);
+
+    // Chromium's PDF renderer uses print CSS. Rasterize that real print layout
+    // and prove the image's red bottom strip survives it before asking the
+    // same renderer for the exported PDF bytes.
+    await page.emulateMedia({ media: 'print' });
+    const printedLayout = await page.screenshot({ fullPage: true });
+    const printedPixels = await sharp(printedLayout).ensureAlpha().raw().toBuffer();
+    let redMarkerPixels = 0;
+    for (let index = 0; index < printedPixels.length; index += 4) {
+      if (printedPixels[index]! > 170 && printedPixels[index + 1]! < 70 && printedPixels[index + 2]! < 70) redMarkerPixels += 1;
+    }
+    expect(redMarkerPixels).toBeGreaterThan(1_000);
+
+    const pdf = await renderPdf(html, 'bottom-marker');
+    expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(pdf.byteLength).toBeGreaterThan(10_000);
+  } finally {
+    await browser.close();
+  }
 });
 
 it('emits tagged PDF structure and an outline', async () => {
