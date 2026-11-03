@@ -113,8 +113,12 @@ export async function scanRoutes(app: FastifyInstance) {
 
   app.get('/scans/:id/issues', async (req) => {
     const { id } = req.params as { id: string };
+    await prisma.finding.updateMany({
+      where: { scanId: id, status: 'WAIVED', waivedExpiresAt: { lte: new Date() } },
+      data: { status: 'OPEN', waivedReason: null, waivedAt: null, waivedExpiresAt: null }
+    });
     const issues = await prisma.finding.findMany({
-      where: { scanId: id, status: { not: 'WAIVED' } }, include: { rule: true, evidence: true }, orderBy: [{ severity: 'desc' }, { ruleId: 'asc' }]
+      where: { scanId: id }, include: { rule: true, evidence: true }, orderBy: [{ severity: 'desc' }, { ruleId: 'asc' }]
     });
     return { scanId: id, issues: issues.map(presentIssue) };
   });

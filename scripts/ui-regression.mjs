@@ -15,7 +15,8 @@ const browser = await chromium.launch({ headless: true })
 const results = []
 const issues = [
   { id: 'a1', severity: 'SERIOUS', impact: 'serious', status: 'OPEN', message: 'FIRST OWNED FIXTURE ISSUE', selector: '#first', rule: { id: 'label', title: 'Label', wcagRefs: ['wcag2a', 'wcag131'] } },
-  { id: 'a2', severity: 'SERIOUS', impact: 'serious', status: 'OPEN', message: 'SECOND OWNED FIXTURE ISSUE', selector: '#second', rule: { id: 'label', title: 'Label', wcagRefs: ['wcag2a', 'wcag131'] } }
+  { id: 'a2', severity: 'SERIOUS', impact: 'serious', status: 'OPEN', message: 'SECOND OWNED FIXTURE ISSUE', selector: '#second', rule: { id: 'label', title: 'Label', wcagRefs: ['wcag2a', 'wcag131'] } },
+  { id: 'a3', severity: 'MODERATE', impact: 'moderate', status: 'WAIVED', message: 'WAIVED OWNED FIXTURE ISSUE', selector: '#waived', waivedReason: 'Accepted local risk', waivedExpiresAt: '2030-01-01T12:30:00.000Z', rule: { id: 'label', title: 'Label', wcagRefs: ['wcag2a', 'wcag131'] } }
 ]
 const deferred = () => {
   let release
@@ -66,6 +67,7 @@ async function scenario(name, test) {
       const id = path.split('/')[2]
       data = { issueId: id, domSnippet: `<div>evidence-${id}</div>`, meta: { url: `https://fixture.example/${id}`, failureSummary: `fix-${id}`, help: `How to fix ${id}`, helpUrl: `https://dequeuniversity.com/rules/axe/${id}` } }
     } else if (path === '/issues/a1/waive') data = { ok: true }
+    else if (path === '/issues/a3/unwaive') data = { ok: true }
     await route.fulfill({ json: data, headers: { 'access-control-allow-origin': '*' } }).catch(() => {})
     mark(`FULFILLED ${key}`)
   })
@@ -288,10 +290,15 @@ try {
     assert.equal(await waive.isDisabled(), true, 'Unsafe short waiver is disabled')
     await page.getByText('Enter at least 10 characters to waive this issue.', { exact: true }).waitFor()
     assert.equal(state.calls.filter((call) => call.key === 'POST /issues/a1/waive').length, 0)
-    state.hold('POST /issues/a1/waive')
     await page.getByLabel('Waive reason', { exact: true }).fill('enough reason')
+    await page.getByLabel('Waiver expiry (optional)', { exact: true }).fill('2020-01-01T12:30')
+    assert.equal(await waive.isDisabled(), true, 'Expired local waiver expiry must not be submitted')
+    assert.equal(state.calls.filter((call) => call.key === 'POST /issues/a1/waive').length, 0)
+    await page.getByLabel('Waiver expiry (optional)', { exact: true }).fill('2030-01-01T12:30')
+    state.hold('POST /issues/a1/waive')
     await waive.click()
     await state.waitForCall('POST /issues/a1/waive')
+    assert.equal(JSON.parse(state.calls.find((call) => call.key === 'POST /issues/a1/waive').body).expiresAt, new Date('2030-01-01T12:30').toISOString(), 'Future local expiry must be sent as an ISO instant')
     assert.equal(await waive.isDisabled(), true, 'Duplicate waiver submit is disabled while pending')
     assert.equal(state.calls.filter((call) => call.key === 'POST /issues/a1/waive').length, 1)
     state.release('POST /issues/a1/waive')
@@ -306,6 +313,16 @@ try {
     state.release('POST /issues/a1/waive')
     await page.waitForFunction(() => document.querySelector('select[aria-label="Scan"] option[value="sb"]'))
     assert.equal(await page.getByText('fix-a1', { exact: true }).count(), 0, 'Late waiver completion cannot repopulate evidence for another scan')
+  })
+  await scenario('waived-items-remain-visible-and-can-be-unwaived', async (page, state) => {
+    await page.getByLabel('Filter by status', { exact: true }).selectOption('WAIVED')
+    await page.getByText('WAIVED OWNED FIXTURE ISSUE', { exact: true }).waitFor()
+    await page.getByRole('button', { name: 'View evidence for moderate issue: WAIVED OWNED FIXTURE ISSUE', exact: true }).click()
+    await page.getByText('Waiver reason: Accepted local risk', { exact: true }).waitFor()
+    await page.getByText(/^Waiver expiry:/).waitFor()
+    await page.getByRole('button', { name: 'Unwaive Issue', exact: true }).click()
+    await page.waitForFunction(() => document.querySelector('footer')?.textContent === 'Unwaived issue a3')
+    assert.equal(state.calls.filter((call) => call.key === 'POST /issues/a3/unwaive').length, 1, 'Unwaive must use the selected issue route exactly once')
   })
   await scenario('filters-do-not-mislabel-a-nonempty-scan-as-empty', async (page) => {
     await page.getByLabel('Filter by severity', { exact: true }).selectOption('CRITICAL')

@@ -8,6 +8,15 @@ const waiveSchema = z.object({
   expiresAt: z.string().datetime().optional()
 });
 
+const clearWaiver = { status: 'OPEN' as const, waivedReason: null, waivedAt: null, waivedExpiresAt: null };
+
+async function expireWaiver(where: { id: string } | { scanId: string }) {
+  await prisma.finding.updateMany({
+    where: { ...where, status: 'WAIVED', waivedExpiresAt: { lte: new Date() } },
+    data: clearWaiver
+  });
+}
+
 async function getEvidence(req: FastifyRequest, reply: FastifyReply) {
   const { id } = req.params as { id: string };
   const finding = await prisma.finding.findUnique({
@@ -36,9 +45,17 @@ async function waiveIssue(req: FastifyRequest, reply: FastifyReply) {
   const { id } = req.params as { id: string };
   try {
     const input = waiveSchema.parse(req.body);
+    if (input.expiresAt && new Date(input.expiresAt) <= new Date()) {
+      return reply.code(400).send({ error: 'Waiver expiry must be in the future' });
+    }
+    await expireWaiver({ id });
     const finding = await prisma.finding.findUnique({ where: { id } });
     if (!finding) {
       return reply.code(404).send({ error: 'Issue not found' });
+    }
+    const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
+    if (expiresAt && expiresAt <= new Date()) {
+      return reply.code(400).send({ error: 'Waiver expiry must be in the future' });
     }
     await prisma.finding.update({
       where: { id },
@@ -46,7 +63,7 @@ async function waiveIssue(req: FastifyRequest, reply: FastifyReply) {
         status: 'WAIVED',
         waivedReason: input.reason,
         waivedAt: new Date(),
-        ...(input.expiresAt && { waivedExpiresAt: new Date(input.expiresAt) })
+        waivedExpiresAt: expiresAt
       }
     });
     return { issueId: id, waived: true };
@@ -56,11 +73,23 @@ async function waiveIssue(req: FastifyRequest, reply: FastifyReply) {
   }
 }
 
+async function unwaiveIssue(req: FastifyRequest, reply: FastifyReply) {
+  const { id } = req.params as { id: string };
+  const finding = await prisma.finding.findUnique({ where: { id } });
+  if (!finding) return reply.code(404).send({ error: 'Issue not found' });
+  if (finding.status === 'WAIVED') {
+    await prisma.finding.updateMany({ where: { id, status: 'WAIVED' }, data: clearWaiver });
+  }
+  return { issueId: id, waived: false };
+}
+
 export async function issueRoutes(app: FastifyInstance) {
   app.get('/issues/:id/evidence', getEvidence);
   app.post('/issues/:id/waive', waiveIssue);
+  app.post('/issues/:id/unwaive', unwaiveIssue);
 
   // Legacy root aliases (kept for backward compatibility)
   app.get('/:id/evidence', getEvidence);
   app.post('/:id/waive', waiveIssue);
+  app.post('/:id/unwaive', unwaiveIssue);
 }
