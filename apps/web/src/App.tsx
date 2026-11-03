@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 type Project = { id: string; name: string; baseUrl: string; _count?: { scans: number } }
 type Scan = { id: string; status: string; coverage?: 'PENDING' | 'COMPLETE' | 'PARTIAL' | 'FAILED'; pages?: Array<{ url: string; outcome: 'PENDING' | 'ANALYZED' | 'FAILED'; status?: number | null; error?: string | null }>; startedAt?: string | null; completedAt?: string | null; _count?: { findings: number; pages: number } }
-type ScanIssue = { id: string; severity: 'CRITICAL' | 'SERIOUS' | 'MODERATE' | 'MINOR'; impact?: string; status: 'OPEN' | 'FIXED' | 'REGRESSED' | 'WAIVED'; message: string; selector?: string | null; rule?: { id: string; title: string; wcagRefs: string[]; wcagCriteria?: string[] } }
+type ScanIssue = { id: string; severity: 'CRITICAL' | 'SERIOUS' | 'MODERATE' | 'MINOR'; impact?: string; status: 'OPEN' | 'FIXED' | 'REGRESSED' | 'WAIVED'; message: string; selector?: string | null; waivedReason?: string | null; waivedExpiresAt?: string | null; rule?: { id: string; title: string; wcagRefs: string[]; wcagCriteria?: string[] } }
 type Evidence = { issueId: string; screenshot: string; domSnippet?: string; meta?: { title?: string; url?: string; failureSummary?: string; help?: string; helpUrl?: string } }
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -34,6 +34,7 @@ export default function App() {
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectUrl, setNewProjectUrl] = useState('')
   const [waiveReason, setWaiveReason] = useState('')
+  const [waiveExpiresAt, setWaiveExpiresAt] = useState('')
   const [waiveAttempted, setWaiveAttempted] = useState(false)
   const [reportFormat, setReportFormat] = useState<'pdf' | 'pptx' | 'html' | 'csv'>('pdf')
   const [msg, setMsg] = useState('')
@@ -61,6 +62,7 @@ export default function App() {
     setEvidence(null)
     setEvidenceLoading(false)
     setWaiveReason('')
+    setWaiveExpiresAt('')
     setWaiveAttempted(false)
   }
 
@@ -251,16 +253,19 @@ export default function App() {
     }
   }
 
-  const waiverInvalid = waiveReason.trim().length < 10
+  const waiverExpiryInvalid = waiveExpiresAt !== '' && (!Number.isFinite(Date.parse(waiveExpiresAt)) || new Date(waiveExpiresAt) <= new Date())
+  const waiverInvalid = waiveReason.trim().length < 10 || waiverExpiryInvalid
   async function waiveIssue() {
     const issue = selectedIssue
     const targetScan = scanIdRef.current
     if (!issue || !targetScan || waivePending) return
-    if (waiverInvalid) { setWaiveAttempted(true); return }
+    const expiryInvalidNow = waiveExpiresAt !== '' && (!Number.isFinite(Date.parse(waiveExpiresAt)) || new Date(waiveExpiresAt) <= new Date())
+    if (waiveReason.trim().length < 10 || expiryInvalidNow) { setWaiveAttempted(true); return }
     const token = ++mutationToken.current
     setWaivePending(true)
     try {
-      const res = await fetch(`${API}/issues/${issue.id}/waive`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reason: waiveReason.trim() }) })
+      const payload = { reason: waiveReason.trim(), ...(waiveExpiresAt ? { expiresAt: new Date(waiveExpiresAt).toISOString() } : {}) }
+      const res = await fetch(`${API}/issues/${issue.id}/waive`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
       if (mutationToken.current !== token || scanIdRef.current !== targetScan || selectedIssueRef.current !== issue.id) return
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -273,6 +278,30 @@ export default function App() {
       if (mutationToken.current === token && scanIdRef.current === targetScan) setMsg(`Waived issue ${issue.id}`)
     } catch (e) {
       if (mutationToken.current === token && scanIdRef.current === targetScan && selectedIssueRef.current === issue.id) setMsg(`Waive failed: ${e instanceof Error ? e.message : 'network error'}`)
+    } finally {
+      if (mutationToken.current === token && scanIdRef.current === targetScan) setWaivePending(false)
+    }
+  }
+
+  async function unwaiveIssue() {
+    const issue = selectedIssue
+    const targetScan = scanIdRef.current
+    if (!issue || issue.status !== 'WAIVED' || !targetScan || waivePending) return
+    const token = ++mutationToken.current
+    setWaivePending(true)
+    try {
+      const res = await fetch(`${API}/issues/${issue.id}/unwaive`, { method: 'POST' })
+      if (mutationToken.current !== token || scanIdRef.current !== targetScan || selectedIssueRef.current !== issue.id) return
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setMsg(`Unwaive failed: ${data.error || res.statusText}`)
+        return
+      }
+      clearEvidence()
+      await loadIssues(targetScan)
+      if (mutationToken.current === token && scanIdRef.current === targetScan) setMsg(`Unwaived issue ${issue.id}`)
+    } catch (e) {
+      if (mutationToken.current === token && scanIdRef.current === targetScan && selectedIssueRef.current === issue.id) setMsg(`Unwaive failed: ${e instanceof Error ? e.message : 'network error'}`)
     } finally {
       if (mutationToken.current === token && scanIdRef.current === targetScan) setWaivePending(false)
     }
@@ -316,7 +345,7 @@ export default function App() {
         {!issuesLoading && issuesResolved && issues.length === 0 && <p role="status">No issues found for this scan.</p>}
         <table><thead><tr><th scope="col">Severity</th><th scope="col">Status</th><th scope="col">WCAG</th><th scope="col">Message</th><th scope="col"><span className="visually-hidden">Evidence</span></th></tr></thead><tbody>{filtered.map((issue) => <tr key={issue.id} onClick={() => void openEvidence(issue)} className={selectedIssue?.id === issue.id ? 'active' : ''}><td>{issue.severity}</td><td>{issue.status}</td><td>{criteriaForRule(issue.rule).join(', ') || '-'}</td><td>{issue.message}</td><td><button className="ghost" onClick={(event) => { event.stopPropagation(); void openEvidence(issue) }} aria-label={`View evidence for ${issue.severity.toLowerCase()} issue: ${issue.message}`}>View</button></td></tr>)}</tbody></table>
       </section>
-      <aside className="panel" aria-labelledby="evidence-heading"><h2 id="evidence-heading">Evidence</h2>{!selectedIssue && <p>Select an issue to load evidence.</p>}{selectedIssue && <><p><strong>Issue:</strong> {selectedIssue.id}</p>{selectedIssue.rule && <p><strong>Rule:</strong> {selectedIssue.rule.id} — {selectedIssue.rule.title}</p>}<p><strong>Impact:</strong> {selectedIssue.impact || selectedIssue.severity.toLowerCase()}</p>{evidenceLoading && <p role="status">Loading evidence…</p>}{evidence?.meta?.url && <p><strong>URL:</strong> {evidence.meta.url}</p>}{evidence?.screenshot && <img src={`${API}${evidence.screenshot}`} alt={evidence.meta?.title ? `Full-page screenshot of ${evidence.meta.title}` : 'Full-page screenshot of the scanned page'} className="shot" />}{evidence?.meta?.failureSummary && <p>{evidence.meta.failureSummary}</p>}{evidence?.meta?.help && <p><strong>How to fix:</strong> {evidence.meta.help}</p>}{evidence?.meta?.helpUrl && <p><a href={evidence.meta.helpUrl} target="_blank" rel="noreferrer" aria-label="Axe rule help source">Axe rule help source</a></p>}<p className="limitation">Automated findings are remediation guidance, not a compliance determination.</p><pre>{evidence?.domSnippet || selectedIssue.selector || 'No DOM snippet available.'}</pre><h3 id="waive-heading">Waive</h3><textarea aria-label="Waive reason" aria-describedby={(waiveAttempted || waiveReason.length > 0) && waiverInvalid ? 'waive-error' : undefined} value={waiveReason} onChange={(event) => setWaiveReason(event.target.value)} placeholder="Reason (min 10 chars)" minLength={10} rows={4} />{(waiveAttempted || waiveReason.length > 0) && waiverInvalid && <p id="waive-error" role="alert">Enter at least 10 characters to waive this issue.</p>}<button onClick={waiveIssue} disabled={waiverInvalid || waivePending}>Waive Issue</button></>}</aside>
+      <aside className="panel" aria-labelledby="evidence-heading"><h2 id="evidence-heading">Evidence</h2>{!selectedIssue && <p>Select an issue to load evidence.</p>}{selectedIssue && <><p><strong>Issue:</strong> {selectedIssue.id}</p>{selectedIssue.rule && <p><strong>Rule:</strong> {selectedIssue.rule.id} — {selectedIssue.rule.title}</p>}<p><strong>Impact:</strong> {selectedIssue.impact || selectedIssue.severity.toLowerCase()}</p>{evidenceLoading && <p role="status">Loading evidence…</p>}{evidence?.meta?.url && <p><strong>URL:</strong> {evidence.meta.url}</p>}{evidence?.screenshot && <img src={`${API}${evidence.screenshot}`} alt={evidence.meta?.title ? `Full-page screenshot of ${evidence.meta.title}` : 'Full-page screenshot of the scanned page'} className="shot" />}{evidence?.meta?.failureSummary && <p>{evidence.meta.failureSummary}</p>}{evidence?.meta?.help && <p><strong>How to fix:</strong> {evidence.meta.help}</p>}{evidence?.meta?.helpUrl && <p><a href={evidence.meta.helpUrl} target="_blank" rel="noreferrer" aria-label="Axe rule help source">Axe rule help source</a></p>}<p className="limitation">Automated findings are remediation guidance, not a compliance determination.</p>{selectedIssue.status === 'WAIVED' && <><p><strong>Waiver reason:</strong> {selectedIssue.waivedReason || 'No reason recorded.'}</p><p><strong>Waiver expiry:</strong> {selectedIssue.waivedExpiresAt ? new Date(selectedIssue.waivedExpiresAt).toLocaleString() : 'No expiry scheduled'}</p><button onClick={unwaiveIssue} disabled={waivePending}>Unwaive Issue</button></>}<pre>{evidence?.domSnippet || selectedIssue.selector || 'No DOM snippet available.'}</pre><h3 id="waive-heading">Waive</h3><textarea aria-label="Waive reason" aria-describedby={(waiveAttempted || waiveReason.length > 0) && waiverInvalid ? 'waive-error' : undefined} value={waiveReason} onChange={(event) => setWaiveReason(event.target.value)} placeholder="Reason (min 10 chars)" minLength={10} rows={4} /><label>Waiver expiry (optional)<input aria-label="Waiver expiry (optional)" type="datetime-local" value={waiveExpiresAt} onChange={(event) => setWaiveExpiresAt(event.target.value)} /></label>{(waiveAttempted || waiveReason.length > 0 || waiveExpiresAt.length > 0) && waiverInvalid && <p id="waive-error" role="alert">{waiverExpiryInvalid ? 'Choose a complete future expiry or leave it blank.' : 'Enter at least 10 characters to waive this issue.'}</p>}<button onClick={waiveIssue} disabled={waiverInvalid || waivePending}>Waive Issue</button></>}</aside>
     </div>
     <footer className="msg" role="status" aria-live="polite">{msg}</footer>
   </main>
