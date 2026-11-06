@@ -1,43 +1,107 @@
-export type PrevFinding = { id: string; fingerprint: string; status: string };
-export type NewFinding = { id: string; fingerprint: string };
-export type StatusUpdate = { id: string; status: 'FIXED' | 'REGRESSED' };
+import { isComparableScan } from '@a11y/shared';
 
-/**
- * Pure diff between a previous completed scan and the current scan.
- * - A new finding whose fingerprint was previously FIXED is REGRESSED.
- * - A previous OPEN finding whose fingerprint no longer appears is FIXED.
- */
-export function computeDiffUpdates(
-  prevFindings: PrevFinding[],
-  newFindings: NewFinding[]
-): StatusUpdate[] {
-  const updates: StatusUpdate[] = [];
-  const prevByFingerprint = new Map(prevFindings.map((f) => [f.fingerprint, f]));
-  const newFingerprints = new Set(newFindings.map((f) => f.fingerprint));
+export type FindingObservation = { id: string; fingerprint: string };
 
-  for (const nf of newFindings) {
-    const prev = prevByFingerprint.get(nf.fingerprint);
-    if (prev?.status === 'FIXED') {
-      updates.push({ id: nf.id, status: 'REGRESSED' });
-    }
-  }
-  for (const pf of prevFindings) {
-    if (pf.status === 'OPEN' && !newFingerprints.has(pf.fingerprint)) {
-      updates.push({ id: pf.id, status: 'FIXED' });
-    }
-  }
-  return updates;
+export type FixedTransition = {
+  priorFindingId: string;
+  fingerprint: string;
+};
+
+export type ScanComparison = {
+  fixed: FixedTransition[];
+  persisting: string[];
+  new: string[];
+  /** IDs belonging only to current-scan observations that reappeared after an absence. */
+  regressedIds: string[];
+};
+
+export type FindingWriter = {
+  finding: {
+    updateMany(args: {
+      where: { id: { in: string[] }; scanId: string };
+      data: { status: 'REGRESSED' };
+    }): Promise<unknown>;
+  };
+};
+
+/** Persists only classifications of observations belonging to the current scan. */
+export async function persistCurrentRegressions(
+  prisma: FindingWriter,
+  scanId: string,
+  currentFindingIds: readonly string[]
+): Promise<void> {
+  if (currentFindingIds.length === 0) return;
+  await prisma.finding.updateMany({
+    where: { id: { in: [...currentFindingIds] }, scanId },
+    data: { status: 'REGRESSED' }
+  });
 }
 
-/** Groups status updates into id lists so they can be applied as bulk updateMany calls. */
-export function groupStatusUpdates(updates: StatusUpdate[]): {
-  fixedIds: string[];
-  regressedIds: string[];
-} {
-  const fixedIds: string[] = [];
+export type ComparableScan = {
+  id: string;
+  completedAt: Date | null;
+  pages: Array<{ url: string }>;
+};
+
+export type ComparableScanCandidate = ComparableScan & {
+  status: string;
+  coverage: string;
+  pages: Array<{ url: string; outcome: string }>;
+};
+
+function exactRequestedUrlSet(urls: readonly string[]): string[] {
+  return [...urls].sort((left, right) => left.localeCompare(right));
+}
+
+export function findComparableScan<T extends ComparableScan>(currentUrls: readonly string[], candidates: readonly T[]): T | null {
+  const current = exactRequestedUrlSet(currentUrls);
+  return [...candidates]
+    .sort((left, right) => (right.completedAt?.getTime() ?? 0) - (left.completedAt?.getTime() ?? 0))
+    .find((candidate) => {
+      const scope = exactRequestedUrlSet(candidate.pages.map((page) => page.url));
+      return scope.length === current.length && scope.every((url, index) => url === current[index]);
+    }) ?? null;
+}
+
+/** Filters historical candidates through the shared finality policy before scope matching. */
+export function selectComparableScans<T extends ComparableScanCandidate>(
+  currentUrls: readonly string[],
+  candidates: readonly T[]
+): T[] {
+  return candidates.filter((candidate) => isComparableScan(candidate) && findComparableScan(currentUrls, [candidate]) !== null);
+}
+
+/**
+ * Derives comparison facts from immutable scan observations. The immediately
+ * previous comparable scan establishes fixed/persisting/new. Older comparable
+ * observations only distinguish a new occurrence from a regression.
+ */
+export function deriveScanComparison(
+  previous: readonly FindingObservation[] | null,
+  current: readonly FindingObservation[],
+  olderComparableObservations: readonly (readonly FindingObservation[])[]
+): ScanComparison {
+  if (!previous) return { fixed: [], persisting: [], new: [], regressedIds: [] };
+
+  const previousByFingerprint = new Map(previous.map((finding) => [finding.fingerprint, finding]));
+  const currentFingerprints = new Set(current.map((finding) => finding.fingerprint));
+  const olderFingerprints = new Set(olderComparableObservations.flatMap((findings) => findings.map((finding) => finding.fingerprint)));
+  const fixed = previous
+    .filter((finding) => !currentFingerprints.has(finding.fingerprint))
+    .map((finding) => ({ priorFindingId: finding.id, fingerprint: finding.fingerprint }));
+  const persisting: string[] = [];
+  const newlyObserved: string[] = [];
   const regressedIds: string[] = [];
-  for (const u of updates) {
-    (u.status === 'FIXED' ? fixedIds : regressedIds).push(u.id);
+
+  for (const finding of current) {
+    if (previousByFingerprint.has(finding.fingerprint)) {
+      persisting.push(finding.fingerprint);
+    } else if (olderFingerprints.has(finding.fingerprint)) {
+      regressedIds.push(finding.id);
+    } else {
+      newlyObserved.push(finding.fingerprint);
+    }
   }
-  return { fixedIds, regressedIds };
+
+  return { fixed, persisting, new: newlyObserved, regressedIds };
 }

@@ -6,6 +6,7 @@ import { checkScanTargetUrl, publicFailureReason } from '@a11y/shared';
 import { errorMessage } from '../lib/errors';
 import { presentIssue } from '../lib/issuePresentation';
 import { dispatchScan } from '../lib/scanDispatch';
+import { buildReportData } from '../lib/report/data';
 
 const runScanSchema = z.object({
   urls: z
@@ -117,9 +118,12 @@ export async function scanRoutes(app: FastifyInstance) {
       where: { scanId: id, status: 'WAIVED', waivedExpiresAt: { lte: new Date() } },
       data: { status: 'OPEN', waivedReason: null, waivedAt: null, waivedExpiresAt: null }
     });
-    const issues = await prisma.finding.findMany({
-      where: { scanId: id }, include: { rule: true, evidence: true }, orderBy: [{ severity: 'desc' }, { ruleId: 'asc' }]
-    });
-    return { scanId: id, issues: issues.map(presentIssue) };
+    const [issues, report] = await Promise.all([
+      prisma.finding.findMany({
+        where: { scanId: id }, include: { rule: true, evidence: true }, orderBy: [{ severity: 'desc' }, { ruleId: 'asc' }]
+      }),
+      buildReportData(id, { includeScreenshots: false })
+    ]);
+    return { scanId: id, issues: issues.map(presentIssue), comparison: report?.comparison ?? null };
   });
 }

@@ -58,12 +58,12 @@ async function scenario(name, test) {
     else if (path === '/projects/pa/scans') data = { scans: [{ id: 'sa', status: 'completed' }] }
     else if (path === '/projects/pb/scans') data = { scans: [{ id: 'sb', status: 'completed' }] }
     else if (path === '/projects/pc/scans') data = { scans: [{ id: 'sc', status: 'completed' }] }
-    else if (path === '/scans/sa/issues') data = { scanId: 'sa', issues }
+    else if (path === '/scans/sa/issues') data = { scanId: 'sa', issues, comparison: { prevScanId: 'prior-sa', fixed: [{ priorFindingId: 'prior-a1', priorEvidenceId: 'prior-evidence-a1', priorPageUrl: 'https://fixture.example/prior', ruleId: 'color-contrast', message: 'FIXED TRANSITION PRIOR OBSERVATION' }] } }
     else if (path === '/scans/sb/issues') data = { scanId: 'sb', issues }
     else if (path === '/scans/sc/issues') data = { scanId: 'sc', issues: [] }
     else if (path === '/scans/pa/run') data = { scanId: 'new-pa' }
     else if (path === '/scans/new-pa') data = { id: 'new-pa', status: 'completed', _count: { findings: 0 } }
-    else if (/^\/issues\/a[12]\/evidence$/.test(path)) {
+    else if (['/issues/a1/evidence', '/issues/a2/evidence', '/issues/prior-a1/evidence'].includes(path)) {
       const id = path.split('/')[2]
       data = { issueId: id, domSnippet: `<div>evidence-${id}</div>`, meta: { url: `https://fixture.example/${id}`, failureSummary: `fix-${id}`, help: `How to fix ${id}`, helpUrl: `https://dequeuniversity.com/rules/axe/${id}` } }
     } else if (path === '/issues/a1/waive') data = { ok: true }
@@ -142,6 +142,18 @@ async function unmountDuringDelayedCreateScenario() {
 }
 
 try {
+  await scenario('derived-fixed-transition-is-separate-and-opens-prior-evidence', async (page, state) => {
+    await page.getByText('Changes since comparable scan', { exact: true }).waitFor()
+    await page.locator('li').filter({ hasText: 'FIXED TRANSITION PRIOR OBSERVATION' }).waitFor()
+    assert.equal(await page.getByText('FIXED', { exact: true }).count(), 0, 'A derived transition must not fabricate a current FIXED issue')
+    await page.getByRole('button', { name: 'View prior evidence for color-contrast', exact: true }).click()
+    await state.waitForCall('GET /issues/prior-a1/evidence')
+    await page.getByText('fix-prior-a1', { exact: true }).waitFor()
+    assert.equal(await page.getByText('Impact: moderate', { exact: true }).count(), 0, 'Historical evidence must not fabricate a moderate impact')
+    assert.equal(await page.getByRole('button', { name: 'Waive Issue', exact: true }).count(), 0, 'Historical evidence must not offer waiver controls')
+    assert.equal(await page.getByRole('button', { name: 'Unwaive Issue', exact: true }).count(), 0, 'Historical evidence must not offer unwaiver controls')
+    assert.equal(state.calls.filter((call) => /POST \/issues\/prior-a1\/(waive|unwaive)/.test(call.key)).length, 0, 'Opening historical evidence must not emit a mutation request')
+  })
   await scenario('project-switch-clears-context', async (page) => {
     await page.getByRole('button', { name: 'View evidence for serious issue: FIRST OWNED FIXTURE ISSUE', exact: true }).click()
     await page.getByText('fix-a1', { exact: true }).waitFor()

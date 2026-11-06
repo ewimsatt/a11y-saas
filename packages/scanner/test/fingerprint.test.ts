@@ -31,6 +31,17 @@ describe('stableFingerprint', () => {
     );
   });
 
+  it('retains legacy raw URL semantics so stored pre-v2 fingerprints remain compatible', () => {
+    const legacyStoredFingerprint = stableFingerprint({ ...base, pageUrl: 'HTTPS://EXAMPLE.com:443/page#route-a' });
+    expect(legacyStoredFingerprint).toBe(
+      stableFingerprint({ ...base, pageUrl: 'HTTPS://EXAMPLE.com:443/page#route-a' })
+    );
+    expect(legacyStoredFingerprint).not.toBe(stableFingerprint(base));
+    expect(legacyStoredFingerprint).not.toBe(
+      stableFingerprint({ ...base, pageUrl: 'HTTPS://EXAMPLE.com:443/page#route-b' })
+    );
+  });
+
   it('tolerates missing selector and message', () => {
     const fp = stableFingerprint({ ruleId: 'r', pageUrl: 'https://e.com' });
     expect(fp).toMatch(/^[0-9a-f]{24}$/);

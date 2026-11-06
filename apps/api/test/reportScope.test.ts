@@ -30,13 +30,16 @@ describe('report scope and lifecycle facts', () => {
     expect(reportCoverageLabel(false, 'PARTIAL')).toBe('Provisional PARTIAL requested-page coverage');
   });
 
-  it('normalizes equivalent URL sets without treating different requested paths as comparable', () => {
+  it('preserves raw URL identity so comparison matches legacy raw fingerprints', () => {
     expect(
       normalizeRequestedUrlSet([
         'HTTPS://Example.TEST:443/a/?b=2&a=1#fragment',
         'https://example.test/'
       ])
-    ).toEqual(['https://example.test/', 'https://example.test/a/?b=2&a=1']);
+    ).toEqual(['HTTPS://Example.TEST:443/a/?b=2&a=1#fragment', 'https://example.test/']);
+    expect(normalizeRequestedUrlSet(['HTTPS://EXAMPLE.test:443/a#fragment'])).not.toEqual(
+      normalizeRequestedUrlSet(['https://example.test/a#fragment'])
+    );
     expect(normalizeRequestedUrlSet(['https://example.test/a'])).not.toEqual(
       normalizeRequestedUrlSet(['https://example.test/b'])
     );
@@ -52,12 +55,13 @@ describe('report scope and lifecycle facts', () => {
     }
   });
 
-  it('searches past the newest scan for the latest scope-equivalent prior scan', () => {
+  it('searches past the newest scan for the latest exact-scope prior scan', () => {
     const candidates = [
       { id: 'newest-wrong-scope', completedAt: new Date('2026-10-20T12:00:00Z'), pages: [{ url: 'https://example.test/other' }] },
       { id: 'older-match', completedAt: new Date('2026-10-19T12:00:00Z'), pages: [{ url: 'https://example.test/a/' }] }
     ];
-    expect(findComparablePriorScan(['https://EXAMPLE.test/a/'], candidates)?.id).toBe('older-match');
+    expect(findComparablePriorScan(['https://EXAMPLE.test/a/'], candidates)).toBeNull();
+    expect(findComparablePriorScan(['https://example.test/a/'], candidates)?.id).toBe('older-match');
   });
 
   it('selects the most-affected analyzed pages, not storage order or failed pages', () => {

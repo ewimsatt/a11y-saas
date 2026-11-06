@@ -86,6 +86,21 @@ it('does not treat COMPLETE plus diffing as final', () => {
   expect(html).not.toContain('Comparable prior scan');
 });
 
+it('renders derived fixed transitions separately from current observations', () => {
+  const html = renderReportHtml(reportData({
+    findings: [],
+    findingGroups: [],
+    actionableGroups: [],
+    totals: { findings: 0, actionableFindings: 0, uniqueRules: 0, affectedPages: 0, bySeverity: { CRITICAL: 0, SERIOUS: 0, MODERATE: 0, MINOR: 0 }, byStatus: { OPEN: 0, FIXED: 0, REGRESSED: 0, WAIVED: 0 } },
+    comparison: { prevScanId: 'prior-scan', prevCompletedAt: new Date('2026-10-20T00:00:00Z'), prevTotal: 1, regressed: 0, fixed: [{ priorFindingId: 'prior-finding', priorEvidenceId: 'prior-evidence', priorPageUrl: 'https://example.test/a', ruleId: 'color-contrast', message: 'Prior contrast observation' }] }
+  }));
+  expect(html).toContain('Changes since comparable scan');
+  expect(html).toContain('1 derived fixed transition');
+  expect(html).toContain('Prior contrast observation');
+  expect(html).toContain('prior-evidence');
+  expect(html).toContain('0</b><span>Occurrences</span>');
+});
+
 it('escapes hostile values and keeps fixed findings out of remediation priority', () => {
   const hostile = finding('open');
   hostile.message = '<script>window.pwned=1</script>';

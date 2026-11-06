@@ -60,7 +60,14 @@ export type ReportData = {
   actionableGroups: FindingGroup[];
   findings: ReportFinding[];
   pages: ReportPage[];
-  comparison: { prevScanId: string; prevCompletedAt: Date | null; prevTotal: number; regressed: number } | null;
+  comparison: {
+    prevScanId: string;
+    prevCompletedAt: Date | null;
+    prevTotal: number;
+    regressed: number;
+    /** Derived transitions, not current-scan observations or totals. */
+    fixed: Array<{ priorFindingId: string; priorEvidenceId: string | null; priorPageUrl: string; ruleId: string; message: string }>;
+  } | null;
   comparisonNote: string;
 };
 
@@ -162,15 +169,29 @@ export async function buildReportData(
         deriveReportFinality(candidate.status, candidate.coverage, candidate.pages)
       )
     );
-    comparisonNote = `Comparison searched the ${COMPARISON_SCAN_LIMIT} most recent earlier completed COMPLETE scans and requires an identical normalized requested URL set.`;
+    comparisonNote = `Comparison searched the ${COMPARISON_SCAN_LIMIT} most recent earlier completed COMPLETE scans and requires an identical raw requested URL set to preserve legacy finding identity.`;
     if (previous) {
-      const [prevTotal, regressed] = await Promise.all([
-        prisma.finding.count({ where: { scanId: previous.id } }),
+      const [previousFindings, regressed] = await Promise.all([
+        prisma.finding.findMany({
+          where: { scanId: previous.id },
+          include: { page: { select: { url: true } }, evidence: { select: { id: true } } },
+          orderBy: { id: 'asc' }
+        }),
         prisma.finding.count({ where: { scanId, status: 'REGRESSED' } })
       ]);
-      comparison = { prevScanId: previous.id, prevCompletedAt: previous.completedAt, prevTotal, regressed };
+      const currentFingerprints = new Set(findings.map((finding) => finding.fingerprint));
+      const fixed = previousFindings
+        .filter((finding) => !currentFingerprints.has(finding.fingerprint))
+        .map((finding) => ({
+          priorFindingId: finding.id,
+          priorEvidenceId: finding.evidence?.id ?? null,
+          priorPageUrl: finding.page.url,
+          ruleId: finding.ruleId,
+          message: finding.message
+        }));
+      comparison = { prevScanId: previous.id, prevCompletedAt: previous.completedAt, prevTotal: previousFindings.length, regressed, fixed };
     } else {
-      comparisonNote = `Comparison omitted: no identical normalized requested URL set was found among the ${COMPARISON_SCAN_LIMIT} most recent earlier completed COMPLETE scans.`;
+      comparisonNote = `Comparison omitted: no identical raw requested URL set was found among the ${COMPARISON_SCAN_LIMIT} most recent earlier completed COMPLETE scans.`;
     }
   }
 
