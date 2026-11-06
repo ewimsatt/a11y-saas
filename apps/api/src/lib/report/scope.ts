@@ -1,3 +1,5 @@
+import { isComparableScan } from '@a11y/shared';
+
 type PageLifecycle = {
   id: string;
   url: string;
@@ -15,12 +17,7 @@ export function deriveReportFinality(
   coverage: string,
   pages: readonly PageLifecycle[]
 ): boolean {
-  return (
-    status === 'completed' &&
-    coverage === 'COMPLETE' &&
-    pages.length > 0 &&
-    pages.every((page) => page.outcome === 'ANALYZED')
-  );
+  return isComparableScan({ status, coverage, pages });
 }
 
 export function reportCoverageLabel(isFinal: boolean, coverage: string): string {
@@ -31,27 +28,8 @@ export function reportCoverageLabel(isFinal: boolean, coverage: string): string 
   return `Provisional ${coverage} requested-page coverage`;
 }
 
-function normalizeRequestedUrl(value: string): string {
-  try {
-    const url = new URL(value);
-    url.hash = '';
-    url.hostname = url.hostname.toLowerCase();
-    if (
-      (url.protocol === 'https:' && url.port === '443') ||
-      (url.protocol === 'http:' && url.port === '80')
-    ) {
-      url.port = '';
-    }
-    // Path slashes and raw query order can change the requested resource.
-    // Only normalize URL-parser origin details and the non-request fragment.
-    return url.toString();
-  } catch {
-    return value.trim();
-  }
-}
-
 export function normalizeRequestedUrlSet(urls: readonly string[]): string[] {
-  return [...new Set(urls.map(normalizeRequestedUrl))].sort();
+  return [...urls].sort((left, right) => left.localeCompare(right));
 }
 
 function sameStringSet(left: readonly string[], right: readonly string[]): boolean {

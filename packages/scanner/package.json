@@ -2,6 +2,9 @@
   "name": "@a11y/scanner",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@a11y/shared": "workspace:*"
+  },
   "scripts": {
     "pw:install": "playwright install"
   }

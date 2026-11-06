@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 type Project = { id: string; name: string; baseUrl: string; _count?: { scans: number } }
 type Scan = { id: string; status: string; coverage?: 'PENDING' | 'COMPLETE' | 'PARTIAL' | 'FAILED'; pages?: Array<{ url: string; outcome: 'PENDING' | 'ANALYZED' | 'FAILED'; status?: number | null; error?: string | null }>; startedAt?: string | null; completedAt?: string | null; _count?: { findings: number; pages: number } }
 type ScanIssue = { id: string; severity: 'CRITICAL' | 'SERIOUS' | 'MODERATE' | 'MINOR'; impact?: string; status: 'OPEN' | 'FIXED' | 'REGRESSED' | 'WAIVED'; message: string; selector?: string | null; waivedReason?: string | null; waivedExpiresAt?: string | null; rule?: { id: string; title: string; wcagRefs: string[]; wcagCriteria?: string[] } }
+type FixedTransition = { priorFindingId: string; priorEvidenceId: string | null; priorPageUrl: string; ruleId: string; message: string }
+type ScanComparison = { prevScanId: string; fixed: FixedTransition[] }
 type Evidence = { issueId: string; screenshot: string; domSnippet?: string; meta?: { title?: string; url?: string; failureSummary?: string; help?: string; helpUrl?: string } }
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -25,8 +27,10 @@ export default function App() {
   const [scans, setScans] = useState<Scan[]>([])
   const [scanId, setScanId] = useState('')
   const [issues, setIssues] = useState<ScanIssue[]>([])
+  const [comparison, setComparison] = useState<ScanComparison | null>(null)
   const [issuesResolved, setIssuesResolved] = useState(false)
   const [selectedIssue, setSelectedIssue] = useState<ScanIssue | null>(null)
+  const [historicalEvidence, setHistoricalEvidence] = useState<FixedTransition | null>(null)
   const [evidence, setEvidence] = useState<Evidence | null>(null)
   const [severityFilter, setSeverityFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
@@ -59,6 +63,7 @@ export default function App() {
     evidenceToken.current += 1
     selectedIssueRef.current = null
     setSelectedIssue(null)
+    setHistoricalEvidence(null)
     setEvidence(null)
     setEvidenceLoading(false)
     setWaiveReason('')
@@ -76,6 +81,7 @@ export default function App() {
     setScans([])
     setScanId('')
     setIssues([])
+    setComparison(null)
     setIssuesResolved(false)
     setIssuesLoading(false)
     setRunPending(false)
@@ -134,6 +140,7 @@ export default function App() {
     scanIdRef.current = nextScanId
     setScanId(nextScanId)
     setIssues([])
+    setComparison(null)
     setIssuesResolved(false)
     setIssuesLoading(false)
     setWaivePending(false)
@@ -169,6 +176,7 @@ export default function App() {
     const token = ++issuesToken.current
     clearEvidence()
     setIssues([])
+    setComparison(null)
     setIssuesResolved(false)
     setIssuesLoading(true)
     try {
@@ -177,6 +185,7 @@ export default function App() {
       const data = await res.json()
       if (issuesToken.current !== token || scanIdRef.current !== id) return
       setIssues(data.issues || [])
+      setComparison(data.comparison || null)
       setIssuesResolved(true)
       setMsg(`Loaded ${data.issues?.length || 0} issues`)
     } catch (e) {
@@ -237,6 +246,7 @@ export default function App() {
     const token = ++evidenceToken.current
     selectedIssueRef.current = issue.id
     setSelectedIssue(issue)
+    setHistoricalEvidence(null)
     setEvidence(null)
     setEvidenceLoading(true)
     try {
@@ -250,6 +260,29 @@ export default function App() {
       if (evidenceToken.current === token && scanIdRef.current === targetScan && selectedIssueRef.current === issue.id) setMsg('Failed to load evidence')
     } finally {
       if (evidenceToken.current === token && scanIdRef.current === targetScan && selectedIssueRef.current === issue.id) setEvidenceLoading(false)
+    }
+  }
+
+  async function openFixedEvidence(transition: FixedTransition) {
+    const targetScan = scanIdRef.current
+    if (!targetScan) return
+    const token = ++evidenceToken.current
+    selectedIssueRef.current = transition.priorFindingId
+    setSelectedIssue(null)
+    setHistoricalEvidence(transition)
+    setEvidence(null)
+    setEvidenceLoading(true)
+    try {
+      const res = await fetch(`${API}/issues/${transition.priorFindingId}/evidence`)
+      if (evidenceToken.current !== token || scanIdRef.current !== targetScan || selectedIssueRef.current !== transition.priorFindingId) return
+      if (!res.ok) { setMsg('Failed to load historical evidence'); return }
+      const data: Evidence = await res.json()
+      if (evidenceToken.current !== token || scanIdRef.current !== targetScan || selectedIssueRef.current !== transition.priorFindingId) return
+      setEvidence(data)
+    } catch {
+      if (evidenceToken.current === token && scanIdRef.current === targetScan && selectedIssueRef.current === transition.priorFindingId) setMsg('Failed to load historical evidence')
+    } finally {
+      if (evidenceToken.current === token && scanIdRef.current === targetScan && selectedIssueRef.current === transition.priorFindingId) setEvidenceLoading(false)
     }
   }
 
@@ -339,13 +372,14 @@ export default function App() {
     </section>
     <div className="grid">
       <section className="panel" aria-labelledby="issues-heading"><h2 id="issues-heading">Issues</h2>
-        <div className="row"><select aria-label="Filter by severity" value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)}><option>ALL</option><option>CRITICAL</option><option>SERIOUS</option><option>MODERATE</option><option>MINOR</option></select><select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>ALL</option><option>OPEN</option><option>FIXED</option><option>REGRESSED</option><option>WAIVED</option></select><input aria-label="Filter by WCAG reference" value={wcagFilter} onChange={(event) => setWcagFilter(event.target.value)} placeholder="WCAG contains (e.g. 1.3.1)" /></div>
+        <div className="row"><select aria-label="Filter by severity" value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)}><option>ALL</option><option>CRITICAL</option><option>SERIOUS</option><option>MODERATE</option><option>MINOR</option></select><select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>ALL</option><option>OPEN</option><option>REGRESSED</option><option>WAIVED</option></select><input aria-label="Filter by WCAG reference" value={wcagFilter} onChange={(event) => setWcagFilter(event.target.value)} placeholder="WCAG contains (e.g. 1.3.1)" /></div>
         <div className="row"><button className="ghost" onClick={() => applyPreset('critical-open')}>Preset: Critical + Open</button><button className="ghost" onClick={() => applyPreset('all-open')}>Preset: All Open</button><button className="ghost" onClick={() => applyPreset('wcag-131')}>Preset: WCAG 1.3.1</button></div>
         {issuesLoading && <p role="status">Loading issues…</p>}
         {!issuesLoading && issuesResolved && issues.length === 0 && <p role="status">No issues found for this scan.</p>}
+        {comparison?.fixed.length ? <section aria-labelledby="comparison-heading"><h3 id="comparison-heading">Changes since comparable scan</h3><p>{comparison.fixed.length} derived fixed transition{comparison.fixed.length === 1 ? '' : 's'} reference prior observations and are excluded from current issue totals.</p><ul>{comparison.fixed.map((transition) => <li key={transition.priorFindingId}><strong>{transition.ruleId}</strong>: {transition.message} <button className="ghost" onClick={() => openFixedEvidence(transition)} aria-label={`View prior evidence for ${transition.ruleId}`}>View prior evidence</button></li>)}</ul></section> : null}
         <table><thead><tr><th scope="col">Severity</th><th scope="col">Status</th><th scope="col">WCAG</th><th scope="col">Message</th><th scope="col"><span className="visually-hidden">Evidence</span></th></tr></thead><tbody>{filtered.map((issue) => <tr key={issue.id} onClick={() => void openEvidence(issue)} className={selectedIssue?.id === issue.id ? 'active' : ''}><td>{issue.severity}</td><td>{issue.status}</td><td>{criteriaForRule(issue.rule).join(', ') || '-'}</td><td>{issue.message}</td><td><button className="ghost" onClick={(event) => { event.stopPropagation(); void openEvidence(issue) }} aria-label={`View evidence for ${issue.severity.toLowerCase()} issue: ${issue.message}`}>View</button></td></tr>)}</tbody></table>
       </section>
-      <aside className="panel" aria-labelledby="evidence-heading"><h2 id="evidence-heading">Evidence</h2>{!selectedIssue && <p>Select an issue to load evidence.</p>}{selectedIssue && <><p><strong>Issue:</strong> {selectedIssue.id}</p>{selectedIssue.rule && <p><strong>Rule:</strong> {selectedIssue.rule.id} — {selectedIssue.rule.title}</p>}<p><strong>Impact:</strong> {selectedIssue.impact || selectedIssue.severity.toLowerCase()}</p>{evidenceLoading && <p role="status">Loading evidence…</p>}{evidence?.meta?.url && <p><strong>URL:</strong> {evidence.meta.url}</p>}{evidence?.screenshot && <img src={`${API}${evidence.screenshot}`} alt={evidence.meta?.title ? `Full-page screenshot of ${evidence.meta.title}` : 'Full-page screenshot of the scanned page'} className="shot" />}{evidence?.meta?.failureSummary && <p>{evidence.meta.failureSummary}</p>}{evidence?.meta?.help && <p><strong>How to fix:</strong> {evidence.meta.help}</p>}{evidence?.meta?.helpUrl && <p><a href={evidence.meta.helpUrl} target="_blank" rel="noreferrer" aria-label="Axe rule help source">Axe rule help source</a></p>}<p className="limitation">Automated findings are remediation guidance, not a compliance determination.</p>{selectedIssue.status === 'WAIVED' && <><p><strong>Waiver reason:</strong> {selectedIssue.waivedReason || 'No reason recorded.'}</p><p><strong>Waiver expiry:</strong> {selectedIssue.waivedExpiresAt ? new Date(selectedIssue.waivedExpiresAt).toLocaleString() : 'No expiry scheduled'}</p><button onClick={unwaiveIssue} disabled={waivePending}>Unwaive Issue</button></>}<pre>{evidence?.domSnippet || selectedIssue.selector || 'No DOM snippet available.'}</pre><h3 id="waive-heading">Waive</h3><textarea aria-label="Waive reason" aria-describedby={(waiveAttempted || waiveReason.length > 0) && waiverInvalid ? 'waive-error' : undefined} value={waiveReason} onChange={(event) => setWaiveReason(event.target.value)} placeholder="Reason (min 10 chars)" minLength={10} rows={4} /><label>Waiver expiry (optional)<input aria-label="Waiver expiry (optional)" type="datetime-local" value={waiveExpiresAt} onChange={(event) => setWaiveExpiresAt(event.target.value)} /></label>{(waiveAttempted || waiveReason.length > 0 || waiveExpiresAt.length > 0) && waiverInvalid && <p id="waive-error" role="alert">{waiverExpiryInvalid ? 'Choose a complete future expiry or leave it blank.' : 'Enter at least 10 characters to waive this issue.'}</p>}<button onClick={waiveIssue} disabled={waiverInvalid || waivePending}>Waive Issue</button></>}</aside>
+      <aside className="panel" aria-labelledby="evidence-heading"><h2 id="evidence-heading">Evidence</h2>{!selectedIssue && !historicalEvidence && <p>Select an issue to load evidence.</p>}{historicalEvidence && <><p><strong>Historical observation:</strong> {historicalEvidence.priorFindingId}</p><p><strong>Rule:</strong> {historicalEvidence.ruleId}</p><p><strong>Prior URL:</strong> {historicalEvidence.priorPageUrl}</p><p><strong>Message:</strong> {historicalEvidence.message}</p>{evidenceLoading && <p role="status">Loading historical evidence…</p>}{evidence?.meta?.url && <p><strong>URL:</strong> {evidence.meta.url}</p>}{evidence?.screenshot && <img src={`${API}${evidence.screenshot}`} alt={evidence.meta?.title ? `Full-page screenshot of ${evidence.meta.title}` : 'Full-page screenshot of the scanned page'} className="shot" />}{evidence?.meta?.failureSummary && <p>{evidence.meta.failureSummary}</p>}{evidence?.meta?.help && <p><strong>How to fix:</strong> {evidence.meta.help}</p>}{evidence?.meta?.helpUrl && <p><a href={evidence.meta.helpUrl} target="_blank" rel="noreferrer" aria-label="Axe rule help source">Axe rule help source</a></p>}<p className="limitation">Historical evidence is read-only. Automated findings are remediation guidance, not a compliance determination.</p><pre>{evidence?.domSnippet || 'No DOM snippet available.'}</pre></>}{selectedIssue && <><p><strong>Issue:</strong> {selectedIssue.id}</p>{selectedIssue.rule && <p><strong>Rule:</strong> {selectedIssue.rule.id} — {selectedIssue.rule.title}</p>}<p><strong>Impact:</strong> {selectedIssue.impact || selectedIssue.severity.toLowerCase()}</p>{evidenceLoading && <p role="status">Loading evidence…</p>}{evidence?.meta?.url && <p><strong>URL:</strong> {evidence.meta.url}</p>}{evidence?.screenshot && <img src={`${API}${evidence.screenshot}`} alt={evidence.meta?.title ? `Full-page screenshot of ${evidence.meta.title}` : 'Full-page screenshot of the scanned page'} className="shot" />}{evidence?.meta?.failureSummary && <p>{evidence.meta.failureSummary}</p>}{evidence?.meta?.help && <p><strong>How to fix:</strong> {evidence.meta.help}</p>}{evidence?.meta?.helpUrl && <p><a href={evidence.meta.helpUrl} target="_blank" rel="noreferrer" aria-label="Axe rule help source">Axe rule help source</a></p>}<p className="limitation">Automated findings are remediation guidance, not a compliance determination.</p>{selectedIssue.status === 'WAIVED' && <><p><strong>Waiver reason:</strong> {selectedIssue.waivedReason || 'No reason recorded.'}</p><p><strong>Waiver expiry:</strong> {selectedIssue.waivedExpiresAt ? new Date(selectedIssue.waivedExpiresAt).toLocaleString() : 'No expiry scheduled'}</p><button onClick={unwaiveIssue} disabled={waivePending}>Unwaive Issue</button></>}<pre>{evidence?.domSnippet || selectedIssue.selector || 'No DOM snippet available.'}</pre><h3 id="waive-heading">Waive</h3><textarea aria-label="Waive reason" aria-describedby={(waiveAttempted || waiveReason.length > 0) && waiverInvalid ? 'waive-error' : undefined} value={waiveReason} onChange={(event) => setWaiveReason(event.target.value)} placeholder="Reason (min 10 chars)" minLength={10} rows={4} /><label>Waiver expiry (optional)<input aria-label="Waiver expiry (optional)" type="datetime-local" value={waiveExpiresAt} onChange={(event) => setWaiveExpiresAt(event.target.value)} /></label>{(waiveAttempted || waiveReason.length > 0 || waiveExpiresAt.length > 0) && waiverInvalid && <p id="waive-error" role="alert">{waiverExpiryInvalid ? 'Choose a complete future expiry or leave it blank.' : 'Enter at least 10 characters to waive this issue.'}</p>}<button onClick={waiveIssue} disabled={waiverInvalid || waivePending}>Waive Issue</button></>}</aside>
     </div>
     <footer className="msg" role="status" aria-live="polite">{msg}</footer>
   </main>

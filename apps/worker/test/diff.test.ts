@@ -1,73 +1,73 @@
 import { describe, expect, it } from 'vitest';
-import { computeDiffUpdates, groupStatusUpdates } from '../src/diff.js';
+import { deriveScanComparison, findComparableScan, selectComparableScans } from '../src/diff.js';
 
-describe('computeDiffUpdates', () => {
-  it('returns no updates when there are no findings', () => {
-    expect(computeDiffUpdates([], [])).toEqual([]);
+describe('deriveScanComparison', () => {
+  it('derives fixed, persistent, and new transitions without changing an earlier observation', () => {
+    const prior = [
+      { id: 'prior-fixed', fingerprint: 'fixed' },
+      { id: 'prior-persisting', fingerprint: 'persisting' }
+    ];
+    const current = [
+      { id: 'current-persisting', fingerprint: 'persisting' },
+      { id: 'current-new', fingerprint: 'new' }
+    ];
+
+    expect(deriveScanComparison(prior, current, [])).toEqual({
+      fixed: [{ priorFindingId: 'prior-fixed', fingerprint: 'fixed' }],
+      persisting: ['persisting'],
+      new: ['new'],
+      regressedIds: []
+    });
+    expect(prior).toEqual([
+      { id: 'prior-fixed', fingerprint: 'fixed' },
+      { id: 'prior-persisting', fingerprint: 'persisting' }
+    ]);
   });
 
-  it('marks previous OPEN findings as FIXED when absent from new scan', () => {
-    const updates = computeDiffUpdates(
-      [{ id: 'p1', fingerprint: 'fp-a', status: 'OPEN' }],
-      []
+  it('marks only the current observation REGRESSED after present -> absent -> present', () => {
+    const result = deriveScanComparison(
+      [],
+      [{ id: 'current-returned', fingerprint: 'returned' }],
+      [[{ id: 'first-observation', fingerprint: 'returned' }]]
     );
-    expect(updates).toEqual([{ id: 'p1', status: 'FIXED' }]);
+
+    expect(result.fixed).toEqual([]);
+    expect(result.regressedIds).toEqual(['current-returned']);
+    expect(result.new).toEqual([]);
   });
 
-  it('marks new findings as REGRESSED when previously FIXED', () => {
-    const updates = computeDiffUpdates(
-      [{ id: 'p1', fingerprint: 'fp-a', status: 'FIXED' }],
-      [{ id: 'n1', fingerprint: 'fp-a' }]
-    );
-    expect(updates).toEqual([{ id: 'n1', status: 'REGRESSED' }]);
+  it('does not claim a regression from legacy mutable FIXED status alone', () => {
+    expect(deriveScanComparison([], [{ id: 'current', fingerprint: 'legacy' }], [])).toEqual({
+      fixed: [], persisting: [], new: ['legacy'], regressedIds: []
+    });
   });
 
-  it('leaves persisting OPEN findings untouched', () => {
-    const updates = computeDiffUpdates(
-      [{ id: 'p1', fingerprint: 'fp-a', status: 'OPEN' }],
-      [{ id: 'n1', fingerprint: 'fp-a' }]
-    );
-    expect(updates).toEqual([]);
-  });
-
-  it('does not resurrect WAIVED findings', () => {
-    const updates = computeDiffUpdates(
-      [{ id: 'p1', fingerprint: 'fp-a', status: 'WAIVED' }],
-      []
-    );
-    expect(updates).toEqual([]);
-  });
-
-  it('handles mixed scenarios', () => {
-    const updates = computeDiffUpdates(
-      [
-        { id: 'p1', fingerprint: 'gone', status: 'OPEN' },
-        { id: 'p2', fingerprint: 'fixed-now-back', status: 'FIXED' },
-        { id: 'p3', fingerprint: 'still-here', status: 'OPEN' }
-      ],
-      [
-        { id: 'n1', fingerprint: 'fixed-now-back' },
-        { id: 'n2', fingerprint: 'still-here' },
-        { id: 'n3', fingerprint: 'brand-new' }
-      ]
-    );
-    expect(updates).toContainEqual({ id: 'n1', status: 'REGRESSED' });
-    expect(updates).toContainEqual({ id: 'p1', status: 'FIXED' });
-    expect(updates).toHaveLength(2);
+  it('returns no transitions when there is no comparable scan', () => {
+    expect(deriveScanComparison(null, [{ id: 'current', fingerprint: 'fp' }], [])).toEqual({
+      fixed: [], persisting: [], new: [], regressedIds: []
+    });
   });
 });
 
-describe('groupStatusUpdates', () => {
-  it('returns empty groups for no updates', () => {
-    expect(groupStatusUpdates([])).toEqual({ fixedIds: [], regressedIds: [] });
+describe('findComparableScan', () => {
+  it('requires exact raw requested URL scope equality so legacy raw fingerprints stay comparable', () => {
+    const candidate = findComparableScan(
+      ['HTTPS://EXAMPLE.test:443/a#fragment'],
+      [
+        { id: 'different', completedAt: new Date('2026-11-02T00:00:00Z'), pages: [{ url: 'https://example.test/other' }] },
+        { id: 'different-hash-route', completedAt: new Date('2026-11-01T06:00:00Z'), pages: [{ url: 'https://example.test/a#settings' }] },
+        { id: 'equivalent', completedAt: new Date('2026-11-01T00:00:00Z'), pages: [{ url: 'https://example.test/a#fragment' }] }
+      ]
+    );
+    expect(candidate).toBeNull();
   });
 
-  it('splits updates by status', () => {
-    const groups = groupStatusUpdates([
-      { id: 'a', status: 'FIXED' },
-      { id: 'b', status: 'REGRESSED' },
-      { id: 'c', status: 'FIXED' }
+  it('ignores completed COMPLETE candidates with pending or failed pages', () => {
+    const candidates = selectComparableScans(['https://example.test/a'], [
+      { id: 'pending', completedAt: new Date('2026-11-03T00:00:00Z'), status: 'completed', coverage: 'COMPLETE', pages: [{ url: 'https://example.test/a', outcome: 'PENDING' as const }] },
+      { id: 'failed', completedAt: new Date('2026-11-02T00:00:00Z'), status: 'completed', coverage: 'COMPLETE', pages: [{ url: 'https://example.test/a', outcome: 'FAILED' as const }] },
+      { id: 'valid', completedAt: new Date('2026-11-01T00:00:00Z'), status: 'completed', coverage: 'COMPLETE', pages: [{ url: 'https://example.test/a', outcome: 'ANALYZED' as const }] }
     ]);
-    expect(groups).toEqual({ fixedIds: ['a', 'c'], regressedIds: ['b'] });
+    expect(candidates.map((candidate) => candidate.id)).toEqual(['valid']);
   });
 });

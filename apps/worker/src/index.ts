@@ -2,7 +2,9 @@ import { QUEUES, checkScanTargetUrl, publicFailureReason } from '@a11y/shared';
 import { prisma } from '@a11y/db';
 import { createBrowserSession, ScanPageError, stableFingerprint } from '@a11y/scanner';
 import { decideScanOutcome } from './scanOutcome.js';
-import { computeDiffUpdates, groupStatusUpdates } from './diff.js';
+import { deriveScanComparison, findComparableScan, persistCurrentRegressions, selectComparableScans } from './diff.js';
+
+const COMPARISON_SCAN_LIMIT = 25;
 import { dedupePageViolations } from './violationPersistence.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -217,39 +219,25 @@ async function diffProcessor(job: Job<{ scanId: string }>) {
       where: { id: scanId },
       data: { status: 'diffing' }
     });
-    const scan = await prisma.scan.findUniqueOrThrow({ where: { id: scanId } });
-    const prevScan = await prisma.scan.findFirst({
-      where: {
-        projectId: scan.projectId,
-        status: 'completed',
-        coverage: 'COMPLETE',
-        completedAt: { lt: scan.startedAt ?? new Date() }
-      },
-      orderBy: { completedAt: 'desc' }
+    const scan = await prisma.scan.findUniqueOrThrow({ where: { id: scanId }, include: { pages: true } });
+    const candidates = await prisma.scan.findMany({
+      where: { projectId: scan.projectId, status: 'completed', coverage: 'COMPLETE', completedAt: { lt: scan.startedAt ?? new Date() } },
+      include: { pages: { select: { url: true, outcome: true } } }, orderBy: { completedAt: 'desc' }, take: COMPARISON_SCAN_LIMIT
     });
-    // Note: when there is no previous scan we still continue to the evidence
-    // lane. (Previously this returned early, leaving first scans stuck in
-    // 'diffing' forever.)
-    if (prevScan) {
-      const prevFindings = await prisma.finding.findMany({
-        where: { scanId: prevScan.id },
-        select: { id: true, fingerprint: true, status: true }
+    const comparable = selectComparableScans(scan.pages.map((page) => page.url), candidates);
+    const previous = findComparableScan(scan.pages.map((page) => page.url), comparable);
+    if (previous) {
+      const findings = await prisma.finding.findMany({
+        where: { scanId: { in: [scanId, ...comparable.map((candidate) => candidate.id)] } },
+        select: { id: true, scanId: true, fingerprint: true }
       });
-      const newFindings = await prisma.finding.findMany({
-        where: { scanId },
-        select: { id: true, fingerprint: true }
-      });
-      const { fixedIds, regressedIds } = groupStatusUpdates(
-        computeDiffUpdates(prevFindings, newFindings)
+      const byScan = new Map<string, Array<{ id: string; fingerprint: string }>>();
+      for (const finding of findings) byScan.set(finding.scanId, [...(byScan.get(finding.scanId) ?? []), finding]);
+      const comparison = deriveScanComparison(
+        byScan.get(previous.id) ?? [], byScan.get(scanId) ?? [],
+        comparable.filter((candidate) => candidate.id !== previous.id).map((candidate) => byScan.get(candidate.id) ?? [])
       );
-      await prisma.$transaction([
-        ...(fixedIds.length
-          ? [prisma.finding.updateMany({ where: { id: { in: fixedIds } }, data: { status: 'FIXED' } })]
-          : []),
-        ...(regressedIds.length
-          ? [prisma.finding.updateMany({ where: { id: { in: regressedIds } }, data: { status: 'REGRESSED' } })]
-          : [])
-      ]);
+      await persistCurrentRegressions(prisma, scanId, comparison.regressedIds);
     }
     await evidenceQueue.add(
       QUEUES.evidence,

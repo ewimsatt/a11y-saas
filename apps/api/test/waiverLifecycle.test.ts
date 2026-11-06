@@ -19,6 +19,9 @@ vi.mock('@a11y/db', () => ({
   }
 }));
 
+const reportMocks = vi.hoisted(() => ({ buildReportData: vi.fn() }));
+vi.mock('../src/lib/report/data', () => ({ buildReportData: reportMocks.buildReportData }));
+
 import { issueRoutes } from '../src/routes/issues';
 import { scanRoutes } from '../src/routes/scans';
 
@@ -31,6 +34,7 @@ describe('local waiver lifecycle routes', () => {
     mocks.findingFindUnique.mockResolvedValue({ id: 'finding-1', status: 'OPEN' });
     mocks.findingUpdate.mockResolvedValue({ id: 'finding-1' });
     mocks.findingFindMany.mockResolvedValue([{ id: 'finding-1', severity: 'SERIOUS', status: 'WAIVED', waivedReason: 'Accepted local risk', waivedAt: new Date('2026-11-03T00:00:00.000Z'), waivedExpiresAt: null, rule: { id: 'label', title: 'Label', wcagRefs: ['wcag131'] }, evidence: null }]);
+    reportMocks.buildReportData.mockResolvedValue(null);
     app = Fastify();
     await app.register(issueRoutes);
     await app.register(scanRoutes);
@@ -48,6 +52,28 @@ describe('local waiver lifecycle routes', () => {
     });
     expect(mocks.findingFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: { scanId: 'scan-1' } }));
     expect(response.json().issues[0]).toMatchObject({ status: 'WAIVED', waivedReason: 'Accepted local risk', waivedExpiresAt: null });
+  });
+
+  it('exposes derived fixed transitions beside, not inside, current issue observations', async () => {
+    reportMocks.buildReportData.mockResolvedValue({
+      comparison: {
+        prevScanId: 'prior-scan',
+        prevCompletedAt: new Date('2026-11-04T00:00:00.000Z'),
+        prevTotal: 1,
+        regressed: 0,
+        fixed: [{ priorFindingId: 'prior-finding', priorEvidenceId: 'prior-evidence', priorPageUrl: 'https://example.test/prior', ruleId: 'color-contrast', message: 'Prior observed contrast issue' }]
+      }
+    });
+
+    const response = await app.inject({ method: 'GET', url: '/scans/scan-1/issues' });
+
+    expect(response.statusCode).toBe(200);
+    expect(reportMocks.buildReportData).toHaveBeenCalledWith('scan-1', { includeScreenshots: false });
+    expect(response.json()).toMatchObject({
+      scanId: 'scan-1',
+      issues: [expect.objectContaining({ id: 'finding-1' })],
+      comparison: { fixed: [{ priorFindingId: 'prior-finding', priorEvidenceId: 'prior-evidence' }] }
+    });
   });
 
   it('rejects a past waiver expiry before mutation', async () => {
