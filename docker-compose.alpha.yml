@@ -52,6 +52,16 @@ services:
     volumes: [alpha-evidence:/app/evidence:ro]
     networks: [app_internal]
 
+  web:
+    build:
+      context: .
+      dockerfile: infra/alpha/Dockerfile
+    command: ["pnpm", "--filter", "@a11y/web", "start"]
+    environment:
+      VITE_API_URL: http://127.0.0.1:3001
+    ports: ["127.0.0.1:3010:3010"]
+    networks: [app_internal]
+
   worker:
     build:
       context: .

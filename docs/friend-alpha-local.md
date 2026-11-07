@@ -38,7 +38,7 @@ docker compose --env-file .env.alpha -f docker-compose.alpha.yml up --build
 
 `alpha:env` creates a fresh 256-bit browser-control token and unique local database password in an uncommitted file with mode 0600. It refuses to overwrite an existing file. Do not commit, print, or share `.env.alpha`; the token is part of the sidecar WebSocket endpoint.
 
-The Compose file uses the dedicated `a11y-friend-alpha` project namespace, so its `down --volumes` command targets only this alpha's containers, networks, and volumes. The API is loopback-only at `http://127.0.0.1:3001`. Run the local web UI separately if wanted, pointed at that loopback API. The browser-sidecar and Smokescreen services have no host ports. The API reads the worker's local evidence volume read-only, so screenshots and report evidence remain available within this one alpha project.
+The Compose file uses the dedicated `a11y-friend-alpha` project namespace, so its `down --volumes` command targets only this alpha's containers, networks, and volumes. The API is loopback-only at `http://127.0.0.1:3001` and the production-built local console is loopback-only at `http://127.0.0.1:3010`; Compose builds and starts both. The console is built with that API origin, and the API CORS allowlist includes the console's loopback origin. The browser-sidecar and Smokescreen services have no host ports. The API reads the worker's local evidence volume read-only, so screenshots and report evidence remain available within this one alpha project.
 
 Stop only this alpha project when finished:
 
