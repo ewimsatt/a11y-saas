@@ -50,7 +50,7 @@ async function waitForReady() {
     const services = ps.status === 0 ? ps.stdout.trim().split('\n').filter(Boolean).map(JSON.parse) : [];
     const running = ['browser', 'smokescreen', 'fixture', 'dns'].every((name) => services.some((service) => service.Service === name && service.State === 'running'));
     const logs = compose('logs', '--no-color', 'browser', 'smokescreen', 'fixture', 'dns');
-    if (running && logs.stdout.includes('Playwright browser server ready') && logs.stdout.includes('scanner egress port guard listening') && logs.stdout.includes('deterministic DNS fixture ready') && logs.stdout.includes('fixture listening on dual-stack port 80')) return;
+    if (running && logs.stdout.includes('Playwright browser server ready') && logs.stdout.includes('scanner egress port guard listening') && logs.stdout.includes('deterministic DNS fixture ready') && logs.stdout.includes('fixture listening on dual-stack port 80') && logs.stdout.includes('fixture listening on dual-stack TLS port 443')) return;
     await sleep(250);
   }
   assert.fail(`services did not become ready\n${compose('ps').stdout}\n${compose('logs', '--no-color').stdout}`);
@@ -102,6 +102,8 @@ try {
     'test/network-fixtures/dns-server.mjs',
     'test/network-fixtures/http-fixture.mjs',
     'test/network-fixtures/browser-probe.mjs',
+    'test/network-fixtures/tls-cert.pem',
+    'test/network-fixtures/tls-key.pem',
   ]) await access(join(root, path), constants.R_OK);
 
   await writeFile(envFile, `PLAYWRIGHT_WS_TOKEN=${syntheticToken}\n`);
@@ -110,6 +112,9 @@ try {
   assert.doesNotMatch(model.stdout, /network_mode:\s*host/, 'host networking is forbidden');
   assert.doesNotMatch(model.stdout, /^\s+ports:/m, 'browser/proxy services must not publish ports');
   assert.doesNotMatch(model.stdout, /extra_hosts:/, 'fixture host injection is forbidden');
+  assert.match(model.stdout, /--allow-address\s+-\s+192\.0\.2\.10:80/, 'test topology may allow only the owned RFC 5737 HTTP fixture');
+  assert.match(model.stdout, /--allow-address\s+-\s+192\.0\.2\.10:443/, 'test topology may allow only the owned RFC 5737 HTTPS fixture');
+  assert.doesNotMatch(model.stdout, /--allow-address\s+-\s+(?!192\.0\.2\.10:(?:80|443))/,'test topology must not expose arbitrary fixture allowlists');
 
   must(compose('up', '--build', '-d'), 'build and start isolated test project');
   started = true;
@@ -141,10 +146,14 @@ try {
   const core = browserProbe('--core');
   assert.equal(core.allowed.status, 200, `allowed status: ${JSON.stringify(core.allowed)}`);
   assert.equal(core.allowed.marker, 1, 'allowed fixture marker must render');
+  assert.equal(core.httpsAllowed.status, 200, `HTTPS allowed status: ${JSON.stringify(core.httpsAllowed)}`);
+  assert.equal(core.httpsAllowed.marker, 1, 'HTTPS allowed fixture marker must render');
+  assert.equal(core.httpsAllowed.screenshot, true, 'real Chromium HTTPS screenshot must succeed');
   assert.equal(core.screenshot, true, 'real Chromium screenshot must succeed');
   assert.equal(core.directDenied, true, 'browser raw TCP route to fixture must fail');
   for (const [name, result] of Object.entries(core.deniedTargets)) assert(isDenied(result), `${name} top-level target must receive denial/error: ${JSON.stringify(result)}`);
   for (const [name, result] of Object.entries(core.redirects)) assert(isDenied(result), `${name} redirect must receive denial/error: ${JSON.stringify(result)}`);
+  assert(isDenied(core.httpsRedirect), `HTTPS redirect must receive denial/error: ${JSON.stringify(core.httpsRedirect)}`);
   assert.equal(core.subresources.status, 200, 'owned subresource document itself must load');
   assert.equal(core.subresources.marker, 1, 'owned subresource document marker must render');
   const expectedForbiddenSubresources = new Set([
@@ -158,6 +167,18 @@ try {
   const observedForbiddenSubresources = new Map(core.subresources.decisions.map((item) => [item.url, item]));
   assert.deepEqual(new Set(observedForbiddenSubresources.keys()), expectedForbiddenSubresources, `each owned forbidden subresource mechanism/path must be observed exactly once: ${JSON.stringify(core.subresources)}`);
   assert([...observedForbiddenSubresources.values()].every((item) => item.failed || item.status >= 400), 'every observed forbidden subresource must be denied');
+  assert.equal(core.httpsSubresources.status, 200, 'owned HTTPS subresource document itself must load');
+  assert.equal(core.httpsSubresources.marker, 1, 'owned HTTPS subresource document marker must render');
+  const expectedForbiddenHttpsSubresources = new Set([
+    'https://10.66.0.10/trap-https-image',
+    'https://169.254.169.254/trap-https-script',
+    'https://[fd00:dead:beef::10]/trap-https-style',
+    'https://private.test/trap-https-frame',
+    'https://10.66.0.10/trap-https-fetch',
+  ]);
+  const observedForbiddenHttpsSubresources = new Map(core.httpsSubresources.decisions.map((item) => [item.url, item]));
+  assert.deepEqual(new Set(observedForbiddenHttpsSubresources.keys()), expectedForbiddenHttpsSubresources, `each HTTPS forbidden subresource mechanism/path must be observed exactly once: ${JSON.stringify(core.httpsSubresources)}`);
+  assert([...observedForbiddenHttpsSubresources.values()].every((item) => item.failed || item.status >= 400), 'every observed HTTPS forbidden subresource must be denied');
   assert.equal(core.serviceWorker.blocked, true, `service worker registration must be blocked: ${JSON.stringify(core.serviceWorker)}`);
   assert.equal(core.mixed.status, 200, `mixed DNS must select only allowed answer: ${JSON.stringify(core.mixed)}`);
   assert.equal(core.mixed.marker, 1, 'mixed DNS public answer must reach fixture');
@@ -177,12 +198,12 @@ try {
 
   resetCounters();
   setRebind('public');
-  const rebindPublic = browserProbe('--navigate', 'http://rebind.test/rebind-public');
-  assert.equal(rebindPublic.status, 200, `first rebind answer must reach public fixture: ${JSON.stringify(rebindPublic)}`);
-  assert.equal(rebindPublic.marker, 1, 'first rebind response marker must render');
+  const rebindPublic = browserProbe('--navigate', 'https://rebind.test/rebind-public');
+  assert.equal(rebindPublic.status, 200, `first HTTPS rebind CONNECT must reach public fixture: ${JSON.stringify(rebindPublic)}`);
+  assert.equal(rebindPublic.marker, 1, 'first HTTPS rebind response marker must render');
   setRebind('private');
-  const rebindPrivate = browserProbe('--navigate', 'http://rebind.test/rebind-private');
-  assert(isDenied(rebindPrivate), `changed private DNS answer must be denied: ${JSON.stringify(rebindPrivate)}`);
+  const rebindPrivate = browserProbe('--navigate', 'https://rebind.test/rebind-private');
+  assert(isDenied(rebindPrivate), `changed private DNS answer on a fresh CONNECT must be denied: ${JSON.stringify(rebindPrivate)}`);
   const countersAfterRebind = fixtureCounters();
   assert.equal(countersAfterRebind.byTarget.public, 1, 'only first rebind connection may reach public fixture');
   assert.equal(countersAfterRebind.byTarget.private, 0, 'changed private DNS answer must never hit trap');
@@ -201,15 +222,23 @@ try {
   assert.deepEqual(fixtureCounters(), countersBeforeOutage, 'proxy outage must not create direct fixture traffic');
 
   proxyLogs = compose('logs', '--no-color', 'smokescreen').stdout;
-  const proxyDecisions = proxyLogs.split('\n').map((line) => line.slice(line.indexOf('{'))).filter((line) => line.startsWith('{')).flatMap((line) => {
-    try { const parsed = JSON.parse(line); return parsed.msg === 'CANONICAL-PROXY-DECISION' ? [parsed] : []; }
+  const proxyRecords = proxyLogs.split('\n').map((line) => line.slice(line.indexOf('{'))).filter((line) => line.startsWith('{')).flatMap((line) => {
+    try {
+      const parsed = JSON.parse(line);
+      return parsed.msg === 'CANONICAL-PROXY-DECISION' || parsed.msg === 'CANONICAL-PROXY-CN-CLOSE' ? [parsed] : [];
+    }
     catch { return []; }
+  });
+  const proxyDecisions = proxyRecords.filter((entry) => entry.msg === 'CANONICAL-PROXY-DECISION').map((entry) => {
+    const close = proxyRecords.find((candidate) => candidate.msg === 'CANONICAL-PROXY-CN-CLOSE' && candidate.id === entry.id);
+    return close ? { ...entry, outbound_remote_addr: close.outbound_remote_addr } : entry;
   });
   assert.match(proxyLogs, /destination_decision allow=false host="allowed\.test" port=8080/, 'port guard logs must prove HTTP 8080 denial');
   assert.match(proxyLogs, /destination_decision allow=false host="allowed\.test" port=8443/, 'port guard logs must prove CONNECT 8443 denial');
-  assert(proxyDecisions.some((entry) => entry.requested_host === 'allowed.test' && entry.allow === true && entry.outbound_remote_addr === '45.0.0.10:80'), 'Smokescreen logs must prove allowed decision and pinned public fixture peer');
+  assert(proxyDecisions.some((entry) => entry.requested_host === 'allowed.test' && entry.allow === true && entry.outbound_remote_addr === '192.0.2.10:80'), 'Smokescreen logs must prove allowed HTTP decision and pinned RFC 5737 fixture peer');
+  assert(proxyDecisions.some((entry) => entry.requested_host === 'allowed.test:443' && entry.allow === true && entry.outbound_remote_addr === '192.0.2.10:443' && entry.proxy_type === 'connect'), 'Smokescreen logs must prove canonical allowed HTTPS CONNECT decision and pinned RFC 5737 fixture peer');
   for (const host of ['10.66.0.10', '169.254.169.254', 'private.test', 'metadata.test', 'rebind.test']) {
-    assert(proxyDecisions.some((entry) => entry.requested_host === host && entry.allow === false), `Smokescreen logs must prove denial for ${host}`);
+    assert(proxyDecisions.some((entry) => (entry.requested_host === host || entry.requested_host === `${host}:443`) && entry.allow === false), `Smokescreen logs must prove denial for ${host}`);
   }
   assert(proxyDecisions.some((entry) => entry.requested_host === '10.66.0.10:80' && entry.allow === false && entry.proxy_type === 'connect'), 'the owned WebSocket CONNECT attempt must be denied at the proxy boundary');
 
@@ -224,6 +253,7 @@ try {
   assert.doesNotMatch(productionText, /\bNO_PROXY\b|\bno_proxy\b/, 'proxy bypass environment is forbidden');
   assert.doesNotMatch(productionText, /network_mode:\s*host|extra_hosts:/, 'host/trust bypass is forbidden');
   assert.doesNotMatch(productionFiles[0], /--no-sandbox|chromiumSandbox:\s*false/, 'browser server may not disable sandboxing');
+  assert.doesNotMatch(productionFiles[0], /--ignore-certificate-errors(?:[\s'",]|$)/, 'browser server may not disable certificate validation globally');
   assert.match(productionFiles[0], /chromiumSandbox:\s*true/, 'browser sandbox must be explicitly enabled');
   assert.match(productionFiles[2], /smokescreenAddr\s*=\s*"127\.0\.0\.1:4751"/, 'port guard may forward only to loopback Smokescreen');
 

@@ -19,7 +19,7 @@ function effectiveChromiumArgs() {
   return [];
 }
 
-function directConnectionDenied(host = '45.0.0.10', port = 80) {
+function directConnectionDenied(host = '192.0.2.10', port = 80) {
   return new Promise((resolve) => {
     const socket = net.connect({ host, port, timeout: 1500 });
     socket.once('connect', () => { socket.destroy(); resolve(false); });
@@ -87,11 +87,17 @@ try {
   } else {
     const args = effectiveChromiumArgs();
     const allowed = await navigate(browser, 'http://allowed.test/allowed');
+    const httpsAllowed = await navigate(browser, 'https://allowed.test/https-allowed');
     const screenshotContext = await browser.newContext({ serviceWorkers: 'block' });
     const screenshotPage = await screenshotContext.newPage();
     await screenshotPage.goto('http://allowed.test/screenshot', { waitUntil: 'domcontentloaded', timeout: 8000 });
     await screenshotPage.screenshot({ path: '/tmp/allowed.png' });
     await screenshotContext.close();
+    const httpsScreenshotContext = await browser.newContext({ serviceWorkers: 'block' });
+    const httpsScreenshotPage = await httpsScreenshotContext.newPage();
+    await httpsScreenshotPage.goto('https://allowed.test/https-screenshot', { waitUntil: 'domcontentloaded', timeout: 8000 });
+    await httpsScreenshotPage.screenshot({ path: '/tmp/allowed-https.png' });
+    await httpsScreenshotContext.close();
 
     const deniedTargets = {};
     for (const [name, url] of Object.entries({
@@ -109,6 +115,7 @@ try {
     for (const path of ['redirect-private', 'redirect-metadata', 'redirect-ipv6', 'redirect-private-dns']) {
       redirects[path] = await navigate(browser, `http://allowed.test/${path}`);
     }
+    const httpsRedirect = await navigate(browser, 'https://allowed.test/https-redirect-private');
 
     const context = await browser.newContext({ serviceWorkers: 'block' });
     const page = await context.newPage();
@@ -127,6 +134,20 @@ try {
     const subresources = { status: subresourceResponse?.status() ?? null, marker: await page.locator('#subresources').count(), decisions: subresourceDecisions };
     await context.close();
 
+    const httpsSubresourceContext = await browser.newContext({ serviceWorkers: 'block' });
+    const httpsSubresourcePage = await httpsSubresourceContext.newPage();
+    const httpsSubresourceDecisions = [];
+    httpsSubresourcePage.on('response', (response) => {
+      if (response.url().includes('trap')) httpsSubresourceDecisions.push({ url: response.url(), status: response.status() });
+    });
+    httpsSubresourcePage.on('requestfailed', (request) => {
+      if (request.url().includes('trap')) httpsSubresourceDecisions.push({ url: request.url(), failed: true, error: request.failure()?.errorText ?? 'request failed' });
+    });
+    const httpsSubresourceResponse = await httpsSubresourcePage.goto('https://allowed.test/https-subresources', { waitUntil: 'domcontentloaded', timeout: 8000 });
+    await httpsSubresourcePage.waitForTimeout(1000);
+    const httpsSubresources = { status: httpsSubresourceResponse?.status() ?? null, marker: await httpsSubresourcePage.locator('#https-subresources').count(), decisions: httpsSubresourceDecisions };
+    await httpsSubresourceContext.close();
+
     const swContext = await browser.newContext({ serviceWorkers: 'block' });
     const swPage = await swContext.newPage();
     const swResponse = await swPage.goto('http://allowed.test/service-worker', { waitUntil: 'domcontentloaded', timeout: 8000 });
@@ -139,11 +160,14 @@ try {
     const deniedConnectPort = await navigate(browser, 'https://allowed.test:8443/trap-denied-connect-port');
     console.log(JSON.stringify({
       allowed,
+      httpsAllowed: { ...httpsAllowed, screenshot: true },
       screenshot: true,
       directDenied: await directConnectionDenied(),
       deniedTargets,
       redirects,
+      httpsRedirect,
       subresources,
+      httpsSubresources,
       serviceWorker: { status: swResponse?.status() ?? null, result: swResult, registrations, blocked: String(swResult).startsWith('blocked:') && registrations === 0 },
       mixed,
       deniedPort,
