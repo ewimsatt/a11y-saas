@@ -3,7 +3,7 @@ import http from 'node:http';
 import net from 'node:net';
 
 const addresses = {
-  public: '45.0.0.10',
+  public: '192.0.2.10',
   private: '10.66.0.10',
   metadata: '169.254.169.254',
   ipv6: 'fd00:dead:beef::10',

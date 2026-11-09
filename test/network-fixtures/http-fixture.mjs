@@ -1,4 +1,6 @@
 import http from 'node:http';
+import https from 'node:https';
+import { readFileSync } from 'node:fs';
 
 const counters = new Map();
 const html = (body) => `<!doctype html><html><head><meta charset="utf-8"><link rel="icon" href="data:,"><title>fixture</title></head><body>${body}</body></html>`;
@@ -10,7 +12,7 @@ function normalizedAddress(address = '') {
 function targetClass(req, port) {
   const address = normalizedAddress(req.socket.localAddress);
   if (port === 8080) return 'denied-port';
-  if (address === '45.0.0.10') return 'public';
+  if (address === '192.0.2.10') return 'public';
   if (address === '10.66.0.10') return 'private';
   if (address === '169.254.169.254') return 'metadata';
   if (address.toLowerCase() === 'fd00:dead:beef::10') return 'ipv6';
@@ -50,6 +52,7 @@ function serve(req, res, port) {
     '/redirect-metadata': 'http://169.254.169.254/trap-redirect-metadata',
     '/redirect-ipv6': 'http://[fd00:dead:beef::10]/trap-redirect-ipv6',
     '/redirect-private-dns': 'http://private.test/trap-redirect-private-dns',
+    '/https-redirect-private': 'https://private.test/trap-https-redirect-private',
   };
   if (redirects[req.url]) {
     res.writeHead(302, { location: redirects[req.url] });
@@ -68,6 +71,16 @@ function serve(req, res, port) {
         const ws = new WebSocket('ws://10.66.0.10/trap-websocket');
         ws.onerror = () => ws.close();
       </script>
+    `));
+  }
+  if (req.url === '/https-subresources') {
+    return res.end(html(`
+      <main id="https-subresources">owned HTTPS subresource fixture</main>
+      <img src="https://10.66.0.10/trap-https-image">
+      <script src="https://169.254.169.254/trap-https-script"></script>
+      <link rel="stylesheet" href="https://[fd00:dead:beef::10]/trap-https-style">
+      <iframe src="https://private.test/trap-https-frame"></iframe>
+      <script>fetch('https://10.66.0.10/trap-https-fetch').catch(() => {});</script>
     `));
   }
   if (req.url === '/service-worker') {
@@ -97,3 +110,12 @@ for (const port of [80, 8080]) {
   });
   server.listen({ port, host: '::', ipv6Only: false }, () => console.log(`fixture listening on dual-stack port ${port}`));
 }
+
+// Checked-in synthetic certificate/key, scoped to this disposable fixture only.
+const tls = { key: readFileSync(new URL('./tls-key.pem', import.meta.url)), cert: readFileSync(new URL('./tls-cert.pem', import.meta.url)) };
+const tlsServer = https.createServer(tls, (req, res) => serve(req, res, 443));
+tlsServer.on('upgrade', (req, socket) => {
+  increment(req, 443, 'websocket');
+  socket.end('HTTP/1.1 418 Forbidden\r\nConnection: close\r\n\r\n');
+});
+tlsServer.listen({ port: 443, host: '::', ipv6Only: false }, () => console.log('fixture listening on dual-stack TLS port 443'));

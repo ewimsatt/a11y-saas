@@ -109,7 +109,8 @@ services:
   smokescreen:
     build:
       context: ../infra/scanner-egress
-    command: ["--resolver-address", "45.0.0.53:53"]
+    # Only this disposable RFC 5737 fixture peer is reachable through the test proxy.
+    command: ["--resolver-address", "192.0.2.53:53", "--allow-address", "192.0.2.10:80"]
     read_only: true
     tmpfs: ["/tmp"]
     security_opt: ["no-new-privileges:true"]
@@ -120,7 +121,7 @@ services:
     networks:
       browser_control: {}
       scanner_egress:
-        ipv4_address: 45.0.0.2
+        ipv4_address: 192.0.2.2
 
   dns:
     image: node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402
@@ -135,7 +136,7 @@ services:
       - ../test/network-fixtures:/fixtures:ro
     networks:
       scanner_egress:
-        ipv4_address: 45.0.0.53
+        ipv4_address: 192.0.2.53
 
   fixture:
     image: node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402
@@ -150,7 +151,7 @@ services:
       - ./:/fixtures:ro
     networks:
       scanner_egress:
-        ipv4_address: 45.0.0.10
+        ipv4_address: 192.0.2.10
 
 networks:
   app_internal: { internal: true }
@@ -159,4 +160,5 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 45.0.0.0/24
+        # RFC 5737 TEST-NET-1 is safe for this disposable owned-fixture topology.
+        - subnet: 192.0.2.0/24

@@ -44,6 +44,14 @@ test('acceptance harness gives the worker only the isolated remote browser route
   assert.doesNotMatch(script, /FIXTURE_ORIGIN="http:\/\/127\.0\.0\.1/)
 })
 
+test('acceptance topology uses the documented fixture range and narrowly permits its owned peer', () => {
+  assert.match(compose, /--resolver-address", "192\.0\.2\.53:53"/)
+  assert.match(compose, /--allow-address", "192\.0\.2\.10:80"/)
+  assert.match(compose, /ipv4_address:\s*192\.0\.2\.(?:2|10|53)/)
+  assert.match(compose, /subnet:\s*192\.0\.2\.0\/24/)
+  assert.doesNotMatch(compose, /\b45\.0\.0\./)
+})
+
 test('acceptance harness drives its loopback-only API from the disposable API container', () => {
   assert.match(compose, /^\s{2}api:\n/m)
   assert.match(compose, /HOST:\s*127\.0\.0\.1/)

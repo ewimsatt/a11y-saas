@@ -49,7 +49,7 @@ rm .env.alpha
 
 ## Supported scan input
 
-Only `http:` or `https:` URLs on ports 80 or 443 are supported. Literal loopback, private, link-local, multicast, credentials-in-URL, and local/internal hostnames are rejected before enqueue. The worker repeats this validation immediately before browser work. Smokescreen remains the connection-time authority for DNS answers, redirects, and subresources.
+Only `http:` or `https:` URLs on ports 80 or 443 are supported. Literal loopback, private, link-local, multicast, credentials-in-URL, and local/internal hostnames are rejected before enqueue. The worker repeats this validation immediately before browser work. Smokescreen remains the connection-time authority for DNS answers, redirects, and subresources. The local regression fixture exercises an allowed HTTPS navigation through CONNECT to a synthetic RFC 5737 peer, along with HTTPS redirect, subresource, and fresh-connection DNS-change denials; it does not make this alpha a general hostile-site browser sandbox.
 
 Failures to connect to the browser sidecar, proxy, or a target become failed or partial scan outcomes. They do not become clean, fixed, or complete scan results.
 
@@ -74,4 +74,4 @@ pnpm test:ui
 
 ## Known release blockers
 
-This is not approved for public, shared, hosted, LAN, or multi-tenant use. Queue recovery, durable external evidence storage, auth/authorization, abuse limits, and complete real-HTTPS CONNECT fixture coverage remain separate release work. Do not claim that this alpha is a hostile-site browser sandbox.
+This is not approved for public, shared, hosted, LAN, or multi-tenant use. Queue recovery, durable external evidence storage, auth/authorization, and abuse limits remain separate release work. Do not claim that this alpha is a hostile-site browser sandbox.
