@@ -42,6 +42,7 @@ model ScanDispatch {
   lastAttemptAt DateTime?
   enqueuedAt    DateTime?
   lastErrorCode String?       @db.VarChar(100)
+  claimToken    String?       @db.Uuid
   leaseUntil    DateTime?
   updatedAt     DateTime      @updatedAt
   scan          Scan          @relation(fields: [scanId], references: [id], onDelete: Cascade)

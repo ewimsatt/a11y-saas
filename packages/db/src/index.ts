@@ -1,4 +1,16 @@
 import { PrismaClient } from '../generated/prisma/client.ts';
+
+export {
+  claimNextStageDispatch,
+  finalizeStageDispatchEnqueueFailure,
+  finalizeStageDispatchEnqueueSuccess
+} from './stageDispatchLedger.ts';
+export type {
+  ClaimedStageDispatch,
+  StageDispatchClaimOptions,
+  StageDispatchFailureFinalization,
+  StageDispatchFinalization
+} from './stageDispatchLedger.ts';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
