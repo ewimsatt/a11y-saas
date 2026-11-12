@@ -1001,6 +1001,7 @@ export const ScanDispatchScalarFieldEnum = {
   lastAttemptAt: 'lastAttemptAt',
   enqueuedAt: 'enqueuedAt',
   lastErrorCode: 'lastErrorCode',
+  claimToken: 'claimToken',
   leaseUntil: 'leaseUntil',
   updatedAt: 'updatedAt'
 } as const

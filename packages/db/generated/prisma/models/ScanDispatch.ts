@@ -43,6 +43,7 @@ export type ScanDispatchMinAggregateOutputType = {
   lastAttemptAt: Date | null
   enqueuedAt: Date | null
   lastErrorCode: string | null
+  claimToken: string | null
   leaseUntil: Date | null
   updatedAt: Date | null
 }
@@ -56,6 +57,7 @@ export type ScanDispatchMaxAggregateOutputType = {
   lastAttemptAt: Date | null
   enqueuedAt: Date | null
   lastErrorCode: string | null
+  claimToken: string | null
   leaseUntil: Date | null
   updatedAt: Date | null
 }
@@ -69,6 +71,7 @@ export type ScanDispatchCountAggregateOutputType = {
   lastAttemptAt: number
   enqueuedAt: number
   lastErrorCode: number
+  claimToken: number
   leaseUntil: number
   updatedAt: number
   _all: number
@@ -92,6 +95,7 @@ export type ScanDispatchMinAggregateInputType = {
   lastAttemptAt?: true
   enqueuedAt?: true
   lastErrorCode?: true
+  claimToken?: true
   leaseUntil?: true
   updatedAt?: true
 }
@@ -105,6 +109,7 @@ export type ScanDispatchMaxAggregateInputType = {
   lastAttemptAt?: true
   enqueuedAt?: true
   lastErrorCode?: true
+  claimToken?: true
   leaseUntil?: true
   updatedAt?: true
 }
@@ -118,6 +123,7 @@ export type ScanDispatchCountAggregateInputType = {
   lastAttemptAt?: true
   enqueuedAt?: true
   lastErrorCode?: true
+  claimToken?: true
   leaseUntil?: true
   updatedAt?: true
   _all?: true
@@ -218,6 +224,7 @@ export type ScanDispatchGroupByOutputType = {
   lastAttemptAt: Date | null
   enqueuedAt: Date | null
   lastErrorCode: string | null
+  claimToken: string | null
   leaseUntil: Date | null
   updatedAt: Date
   _count: ScanDispatchCountAggregateOutputType | null
@@ -254,6 +261,7 @@ export type ScanDispatchWhereInput = {
   lastAttemptAt?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
   enqueuedAt?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
   lastErrorCode?: Prisma.StringNullableFilter<"ScanDispatch"> | string | null
+  claimToken?: Prisma.UuidNullableFilter<"ScanDispatch"> | string | null
   leaseUntil?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
   updatedAt?: Prisma.DateTimeFilter<"ScanDispatch"> | Date | string
   scan?: Prisma.XOR<Prisma.ScanScalarRelationFilter, Prisma.ScanWhereInput>
@@ -268,6 +276,7 @@ export type ScanDispatchOrderByWithRelationInput = {
   lastAttemptAt?: Prisma.SortOrderInput | Prisma.SortOrder
   enqueuedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   lastErrorCode?: Prisma.SortOrderInput | Prisma.SortOrder
+  claimToken?: Prisma.SortOrderInput | Prisma.SortOrder
   leaseUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   scan?: Prisma.ScanOrderByWithRelationInput
@@ -285,6 +294,7 @@ export type ScanDispatchWhereUniqueInput = Prisma.AtLeast<{
   lastAttemptAt?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
   enqueuedAt?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
   lastErrorCode?: Prisma.StringNullableFilter<"ScanDispatch"> | string | null
+  claimToken?: Prisma.UuidNullableFilter<"ScanDispatch"> | string | null
   leaseUntil?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
   updatedAt?: Prisma.DateTimeFilter<"ScanDispatch"> | Date | string
   scan?: Prisma.XOR<Prisma.ScanScalarRelationFilter, Prisma.ScanWhereInput>
@@ -299,6 +309,7 @@ export type ScanDispatchOrderByWithAggregationInput = {
   lastAttemptAt?: Prisma.SortOrderInput | Prisma.SortOrder
   enqueuedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   lastErrorCode?: Prisma.SortOrderInput | Prisma.SortOrder
+  claimToken?: Prisma.SortOrderInput | Prisma.SortOrder
   leaseUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.ScanDispatchCountOrderByAggregateInput
@@ -320,6 +331,7 @@ export type ScanDispatchScalarWhereWithAggregatesInput = {
   lastAttemptAt?: Prisma.DateTimeNullableWithAggregatesFilter<"ScanDispatch"> | Date | string | null
   enqueuedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"ScanDispatch"> | Date | string | null
   lastErrorCode?: Prisma.StringNullableWithAggregatesFilter<"ScanDispatch"> | string | null
+  claimToken?: Prisma.UuidNullableWithAggregatesFilter<"ScanDispatch"> | string | null
   leaseUntil?: Prisma.DateTimeNullableWithAggregatesFilter<"ScanDispatch"> | Date | string | null
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"ScanDispatch"> | Date | string
 }
@@ -332,6 +344,7 @@ export type ScanDispatchCreateInput = {
   lastAttemptAt?: Date | string | null
   enqueuedAt?: Date | string | null
   lastErrorCode?: string | null
+  claimToken?: string | null
   leaseUntil?: Date | string | null
   updatedAt?: Date | string
   scan: Prisma.ScanCreateNestedOneWithoutDispatchInput
@@ -346,6 +359,7 @@ export type ScanDispatchUncheckedCreateInput = {
   lastAttemptAt?: Date | string | null
   enqueuedAt?: Date | string | null
   lastErrorCode?: string | null
+  claimToken?: string | null
   leaseUntil?: Date | string | null
   updatedAt?: Date | string
 }
@@ -358,6 +372,7 @@ export type ScanDispatchUpdateInput = {
   lastAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   enqueuedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastErrorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  claimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   leaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scan?: Prisma.ScanUpdateOneRequiredWithoutDispatchNestedInput
@@ -372,6 +387,7 @@ export type ScanDispatchUncheckedUpdateInput = {
   lastAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   enqueuedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastErrorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  claimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   leaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -385,6 +401,7 @@ export type ScanDispatchCreateManyInput = {
   lastAttemptAt?: Date | string | null
   enqueuedAt?: Date | string | null
   lastErrorCode?: string | null
+  claimToken?: string | null
   leaseUntil?: Date | string | null
   updatedAt?: Date | string
 }
@@ -397,6 +414,7 @@ export type ScanDispatchUpdateManyMutationInput = {
   lastAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   enqueuedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastErrorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  claimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   leaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -410,6 +428,7 @@ export type ScanDispatchUncheckedUpdateManyInput = {
   lastAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   enqueuedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastErrorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  claimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   leaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -428,6 +447,7 @@ export type ScanDispatchCountOrderByAggregateInput = {
   lastAttemptAt?: Prisma.SortOrder
   enqueuedAt?: Prisma.SortOrder
   lastErrorCode?: Prisma.SortOrder
+  claimToken?: Prisma.SortOrder
   leaseUntil?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -445,6 +465,7 @@ export type ScanDispatchMaxOrderByAggregateInput = {
   lastAttemptAt?: Prisma.SortOrder
   enqueuedAt?: Prisma.SortOrder
   lastErrorCode?: Prisma.SortOrder
+  claimToken?: Prisma.SortOrder
   leaseUntil?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -458,6 +479,7 @@ export type ScanDispatchMinOrderByAggregateInput = {
   lastAttemptAt?: Prisma.SortOrder
   enqueuedAt?: Prisma.SortOrder
   lastErrorCode?: Prisma.SortOrder
+  claimToken?: Prisma.SortOrder
   leaseUntil?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -518,6 +540,7 @@ export type ScanDispatchCreateWithoutScanInput = {
   lastAttemptAt?: Date | string | null
   enqueuedAt?: Date | string | null
   lastErrorCode?: string | null
+  claimToken?: string | null
   leaseUntil?: Date | string | null
   updatedAt?: Date | string
 }
@@ -530,6 +553,7 @@ export type ScanDispatchUncheckedCreateWithoutScanInput = {
   lastAttemptAt?: Date | string | null
   enqueuedAt?: Date | string | null
   lastErrorCode?: string | null
+  claimToken?: string | null
   leaseUntil?: Date | string | null
   updatedAt?: Date | string
 }
@@ -558,6 +582,7 @@ export type ScanDispatchUpdateWithoutScanInput = {
   lastAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   enqueuedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastErrorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  claimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   leaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -570,6 +595,7 @@ export type ScanDispatchUncheckedUpdateWithoutScanInput = {
   lastAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   enqueuedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastErrorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  claimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   leaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -585,6 +611,7 @@ export type ScanDispatchSelect<ExtArgs extends runtime.Types.Extensions.Internal
   lastAttemptAt?: boolean
   enqueuedAt?: boolean
   lastErrorCode?: boolean
+  claimToken?: boolean
   leaseUntil?: boolean
   updatedAt?: boolean
   scan?: boolean | Prisma.ScanDefaultArgs<ExtArgs>
@@ -599,6 +626,7 @@ export type ScanDispatchSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   lastAttemptAt?: boolean
   enqueuedAt?: boolean
   lastErrorCode?: boolean
+  claimToken?: boolean
   leaseUntil?: boolean
   updatedAt?: boolean
   scan?: boolean | Prisma.ScanDefaultArgs<ExtArgs>
@@ -613,6 +641,7 @@ export type ScanDispatchSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   lastAttemptAt?: boolean
   enqueuedAt?: boolean
   lastErrorCode?: boolean
+  claimToken?: boolean
   leaseUntil?: boolean
   updatedAt?: boolean
   scan?: boolean | Prisma.ScanDefaultArgs<ExtArgs>
@@ -627,11 +656,12 @@ export type ScanDispatchSelectScalar = {
   lastAttemptAt?: boolean
   enqueuedAt?: boolean
   lastErrorCode?: boolean
+  claimToken?: boolean
   leaseUntil?: boolean
   updatedAt?: boolean
 }
 
-export type ScanDispatchOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"scanId" | "jobId" | "state" | "attemptCount" | "nextAttemptAt" | "lastAttemptAt" | "enqueuedAt" | "lastErrorCode" | "leaseUntil" | "updatedAt", ExtArgs["result"]["scanDispatch"]>
+export type ScanDispatchOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"scanId" | "jobId" | "state" | "attemptCount" | "nextAttemptAt" | "lastAttemptAt" | "enqueuedAt" | "lastErrorCode" | "claimToken" | "leaseUntil" | "updatedAt", ExtArgs["result"]["scanDispatch"]>
 export type ScanDispatchInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   scan?: boolean | Prisma.ScanDefaultArgs<ExtArgs>
 }
@@ -656,6 +686,7 @@ export type $ScanDispatchPayload<ExtArgs extends runtime.Types.Extensions.Intern
     lastAttemptAt: Date | null
     enqueuedAt: Date | null
     lastErrorCode: string | null
+    claimToken: string | null
     leaseUntil: Date | null
     updatedAt: Date
   }, ExtArgs["result"]["scanDispatch"]>
@@ -1090,6 +1121,7 @@ export interface ScanDispatchFieldRefs {
   readonly lastAttemptAt: Prisma.FieldRef<"ScanDispatch", 'DateTime'>
   readonly enqueuedAt: Prisma.FieldRef<"ScanDispatch", 'DateTime'>
   readonly lastErrorCode: Prisma.FieldRef<"ScanDispatch", 'String'>
+  readonly claimToken: Prisma.FieldRef<"ScanDispatch", 'String'>
   readonly leaseUntil: Prisma.FieldRef<"ScanDispatch", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"ScanDispatch", 'DateTime'>
 }

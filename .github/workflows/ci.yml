@@ -8,6 +8,20 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_only
+          POSTGRES_DB: a11y_stage_dispatch_test_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d a11y_stage_dispatch_test_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -23,7 +37,13 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: Typecheck
         run: pnpm typecheck
+      - name: Migrate stage-dispatch test database
+        env:
+          DATABASE_URL: postgresql://postgres:synthetic_only@127.0.0.1:5432/a11y_stage_dispatch_test_ci
+        run: pnpm exec prisma migrate deploy --schema packages/db/prisma/schema.prisma
       - name: Unit tests
+        env:
+          STAGE_DISPATCH_TEST_DATABASE_URL: postgresql://postgres:synthetic_only@127.0.0.1:5432/a11y_stage_dispatch_test_ci
         run: pnpm test
       - name: Web build
         run: pnpm --filter @a11y/web build
