@@ -995,14 +995,21 @@ export type ScanScalarFieldEnum = (typeof ScanScalarFieldEnum)[keyof typeof Scan
 export const ScanDispatchScalarFieldEnum = {
   scanId: 'scanId',
   jobId: 'jobId',
+  stage: 'stage',
+  generation: 'generation',
   state: 'state',
   attemptCount: 'attemptCount',
+  dispatchAttemptCount: 'dispatchAttemptCount',
+  runAttemptCount: 'runAttemptCount',
   nextAttemptAt: 'nextAttemptAt',
   lastAttemptAt: 'lastAttemptAt',
   enqueuedAt: 'enqueuedAt',
+  completedAt: 'completedAt',
   lastErrorCode: 'lastErrorCode',
   claimToken: 'claimToken',
   leaseUntil: 'leaseUntil',
+  runClaimToken: 'runClaimToken',
+  runLeaseUntil: 'runLeaseUntil',
   updatedAt: 'updatedAt'
 } as const
 
@@ -1164,16 +1171,16 @@ export type ListEnumScanCoverageFieldRefInput<$PrismaModel> = FieldRefInputType<
 
 
 /**
- * Reference to a field of type 'DispatchState'
+ * Reference to a field of type 'DispatchStage'
  */
-export type EnumDispatchStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DispatchState'>
+export type EnumDispatchStageFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DispatchStage'>
     
 
 
 /**
- * Reference to a field of type 'DispatchState[]'
+ * Reference to a field of type 'DispatchStage[]'
  */
-export type ListEnumDispatchStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DispatchState[]'>
+export type ListEnumDispatchStageFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DispatchStage[]'>
     
 
 
@@ -1188,6 +1195,20 @@ export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'In
  * Reference to a field of type 'Int[]'
  */
 export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+/**
+ * Reference to a field of type 'DispatchState'
+ */
+export type EnumDispatchStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DispatchState'>
+    
+
+
+/**
+ * Reference to a field of type 'DispatchState[]'
+ */
+export type ListEnumDispatchStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DispatchState[]'>
     
 
 

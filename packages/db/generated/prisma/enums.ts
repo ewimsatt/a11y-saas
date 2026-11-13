@@ -46,10 +46,21 @@ export const DispatchState = {
   PENDING: 'PENDING',
   DISPATCHING: 'DISPATCHING',
   ENQUEUED: 'ENQUEUED',
+  COMPLETED: 'COMPLETED',
   DEAD: 'DEAD'
 } as const
 
 export type DispatchState = (typeof DispatchState)[keyof typeof DispatchState]
+
+
+export const DispatchStage = {
+  CRAWL: 'CRAWL',
+  ANALYZE: 'ANALYZE',
+  DIFF: 'DIFF',
+  EVIDENCE: 'EVIDENCE'
+} as const
+
+export type DispatchStage = (typeof DispatchStage)[keyof typeof DispatchStage]
 
 
 export const Severity = {

@@ -34,20 +34,30 @@ model Scan {
 }
 
 model ScanDispatch {
-  scanId        String        @id
-  jobId         String        @unique @db.VarChar(255)
-  state         DispatchState @default(PENDING)
-  attemptCount  Int           @default(0)
-  nextAttemptAt DateTime      @default(now())
-  lastAttemptAt DateTime?
-  enqueuedAt    DateTime?
-  lastErrorCode String?       @db.VarChar(100)
-  claimToken    String?       @db.Uuid
-  leaseUntil    DateTime?
-  updatedAt     DateTime      @updatedAt
-  scan          Scan          @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  scanId                String        @id
+  jobId                 String        @unique @db.VarChar(255)
+  stage                 DispatchStage @default(CRAWL)
+  generation            Int           @default(0)
+  state                 DispatchState @default(PENDING)
+  // Legacy dispatch counter retained for the merged claim-foundation API.
+  // Runtime code advances dispatchAttemptCount and mirrors it here until a later
+  // compatibility migration can remove the old surface.
+  attemptCount          Int           @default(0)
+  dispatchAttemptCount  Int           @default(0)
+  runAttemptCount       Int           @default(0)
+  nextAttemptAt         DateTime      @default(now())
+  lastAttemptAt         DateTime?
+  enqueuedAt            DateTime?
+  completedAt           DateTime?
+  lastErrorCode         String?       @db.VarChar(100)
+  claimToken            String?       @db.Uuid
+  leaseUntil            DateTime?
+  runClaimToken         String?       @db.Uuid
+  runLeaseUntil         DateTime?
+  updatedAt             DateTime      @updatedAt
+  scan                  Scan          @relation(fields: [scanId], references: [id], onDelete: Cascade)
 
-  @@index([state, nextAttemptAt])
+  @@index([state, nextAttemptAt, leaseUntil])
 }
 
 model Page {
@@ -129,7 +139,15 @@ enum DispatchState {
   PENDING
   DISPATCHING
   ENQUEUED
+  COMPLETED
   DEAD
+}
+
+enum DispatchStage {
+  CRAWL
+  ANALYZE
+  DIFF
+  EVIDENCE
 }
 
 enum Severity {

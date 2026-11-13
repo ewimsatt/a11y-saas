@@ -1,9 +1,7 @@
+import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import Redis from 'ioredis';
-import { Queue } from 'bullmq';
 import { prisma } from '@a11y/db';
-import { QUEUES } from '@a11y/shared';
 
 type Snapshot = {
   scanId: string;
@@ -14,7 +12,7 @@ type Snapshot = {
     pageId: string;
     ruleId: string;
     selector: string | null;
-    evidence: { id: string; screenshot: string; domSnippet: string | null; meta: unknown } | null;
+    evidence: { id: string; screenshot: string; artifactDigest: string; domSnippet: string | null; meta: unknown } | null;
     page: { title: string | null; url: string };
   }>;
   deletedFindingId?: string;
@@ -45,37 +43,30 @@ async function snapshot(scanId: string): Promise<Snapshot> {
   });
   return {
     scanId,
-    records: findings.map((finding) => ({
-      id: finding.id,
-      fingerprint: finding.fingerprint,
-      status: finding.status,
-      pageId: finding.pageId,
-      ruleId: finding.ruleId,
-      selector: finding.selector,
-      evidence: finding.evidence && {
-        id: finding.evidence.id,
-        screenshot: finding.evidence.screenshot,
-        domSnippet: finding.evidence.domSnippet,
-        meta: finding.evidence.meta
-      },
-      page: finding.page
+    records: await Promise.all(findings.map(async (finding) => {
+      const evidence = finding.evidence
+        ? {
+            id: finding.evidence.id,
+            screenshot: finding.evidence.screenshot,
+            artifactDigest: createHash('sha256').update(await fs.readFile(path.join(process.env.EVIDENCE_DIR ?? '/evidence', finding.evidence.screenshot))).digest('hex'),
+            domSnippet: finding.evidence.domSnippet,
+            meta: finding.evidence.meta
+          }
+        : null;
+      return {
+        id: finding.id,
+        fingerprint: finding.fingerprint,
+        status: finding.status,
+        pageId: finding.pageId,
+        ruleId: finding.ruleId,
+        selector: finding.selector,
+        evidence,
+        page: finding.page
+      };
     }))
   };
 }
 
-async function enqueue(scanId: string) {
-  const redisUrl = process.env.REDIS_URL;
-  if (!redisUrl) throw new Error('REDIS_URL is required for acceptance retry');
-  const connection = new Redis(redisUrl, { maxRetriesPerRequest: null });
-  const prefix = process.env.BULLMQ_PREFIX;
-  const queue = new Queue(QUEUES.crawl, prefix ? { connection, prefix } : { connection });
-  try {
-    await queue.add(QUEUES.crawl, { scanId }, { jobId: scanId, removeOnComplete: true, removeOnFail: true });
-  } finally {
-    await queue.close();
-    await connection.quit();
-  }
-}
 
 async function assertFaulted(encodedBaseline: string) {
   const expectedBaseline = decodeSnapshot(encodedBaseline);
@@ -93,17 +84,27 @@ async function assertFaulted(encodedBaseline: string) {
 }
 
 async function retry() {
-  await prisma.$transaction([
-    prisma.page.updateMany({
+  const dispatch = await prisma.scanDispatch.findUniqueOrThrow({ where: { scanId: primaryId } });
+  const generation = dispatch.generation + 1;
+  await prisma.$transaction(async (tx) => {
+    await tx.page.updateMany({
       where: { scanId: primaryId },
       data: { outcome: 'PENDING', status: null, error: null }
-    }),
-    prisma.scan.update({
+    });
+    await tx.scan.update({
       where: { id: primaryId },
       data: { status: 'queued', coverage: 'PENDING', completedAt: null }
-    })
-  ]);
-  await enqueue(primaryId);
+    });
+    await tx.$executeRaw`
+      UPDATE "ScanDispatch"
+      SET "stage" = 'CRAWL', "generation" = ${generation}, "jobId" = ${`${primaryId}-crawl-${generation}`},
+          "state" = 'PENDING', "dispatchAttemptCount" = 0, "attemptCount" = 0, "runAttemptCount" = 0,
+          "claimToken" = NULL, "leaseUntil" = NULL, "runClaimToken" = NULL, "runLeaseUntil" = NULL,
+          "completedAt" = NULL, "enqueuedAt" = NULL, "lastAttemptAt" = NULL, "lastErrorCode" = NULL,
+          "nextAttemptAt" = CURRENT_TIMESTAMP, "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "scanId" = ${primaryId}
+    `;
+  });
 }
 
 async function deleteOneEvidence() {
@@ -128,18 +129,26 @@ async function assertCompleteMapping(current: Snapshot, expected: Snapshot, requ
   for (const expectedRecord of expected.records) {
     const record = current.records.find((candidate) => candidate.id === expectedRecord.id);
     if (!record?.evidence || !expectedRecord.evidence) throw new Error(`missing repaired finding/evidence ${expectedRecord.id}`);
+    const preservesPriorEvidence = record.id !== expected.deletedFindingId;
     if (
       record.fingerprint !== expectedRecord.fingerprint ||
       record.status !== expectedRecord.status ||
       record.pageId !== expectedRecord.pageId ||
       record.ruleId !== expectedRecord.ruleId ||
       record.selector !== expectedRecord.selector ||
-      record.evidence.screenshot !== `pages/${record.pageId}.png` ||
+      !/^pages\/[A-Za-z0-9._-]+\.png$/.test(record.evidence.screenshot) ||
       record.evidence.domSnippet !== expectedRecord.evidence.domSnippet ||
       JSON.stringify(record.evidence.meta) !== JSON.stringify(expectedRecord.evidence.meta) ||
       JSON.stringify(record.page) !== JSON.stringify(expectedRecord.page)
     ) {
       throw new Error(`finding/evidence mapping changed for ${expectedRecord.id}: ${JSON.stringify({ expected: expectedRecord, actual: record })}`);
+    }
+    if (preservesPriorEvidence && (
+      record.evidence.id !== expectedRecord.evidence.id ||
+      record.evidence.screenshot !== expectedRecord.evidence.screenshot ||
+      record.evidence.artifactDigest !== expectedRecord.evidence.artifactDigest
+    )) {
+      throw new Error(`retry changed durable evidence reference or bytes for ${record.id}`);
     }
     const meta = record.evidence.meta as { title?: unknown; url?: unknown; targetIdentity?: unknown } | null;
     if (meta?.title !== record.page.title || meta?.url !== record.page.url || typeof meta?.targetIdentity !== 'string') {
@@ -181,8 +190,25 @@ async function assertLegacyRepair(encoded: string, requireEvidenceIds: boolean) 
 
 async function createQueuedScan(projectId: string) {
   const project = await prisma.project.findUniqueOrThrow({ where: { id: projectId } });
-  const scan = await prisma.scan.create({ data: { projectId, status: 'queued', startedAt: new Date() } });
-  await prisma.page.create({ data: { scanId: scan.id, url: project.baseUrl } });
+  const scan = await prisma.$transaction(async (tx) => {
+    // Keep the selected fault fixture terminal and non-claimable until the
+    // harness has installed its target-scoped trigger and calls retry().
+    const created = await tx.scan.create({
+      data: { projectId, status: 'failed', coverage: 'FAILED', startedAt: new Date() }
+    });
+    await tx.page.create({ data: { scanId: created.id, url: project.baseUrl } });
+    await tx.scanDispatch.create({
+      data: {
+        scanId: created.id,
+        jobId: `${created.id}-crawl-0`,
+        stage: 'CRAWL',
+        generation: 0,
+        state: 'DEAD',
+        lastErrorCode: 'ACCEPTANCE_FIXTURE_DORMANT'
+      }
+    });
+    return created;
+  });
   console.log(scan.id);
 }
 

@@ -64,7 +64,7 @@ export async function scanRoutes(app: FastifyInstance) {
           data: { projectId, status: 'queued', startedAt: new Date(), requestKey: key, requestDigest: key ? digest : null }
         });
         await tx.page.createMany({ data: urls.map((url) => ({ scanId: created.id, url })) });
-        await tx.scanDispatch.create({ data: { scanId: created.id, jobId: `${created.id}-crawl`, state: 'PENDING' } });
+        await tx.scanDispatch.create({ data: { scanId: created.id, jobId: `${created.id}-crawl-0`, stage: 'CRAWL', generation: 0, state: 'PENDING' } });
         return created;
       });
 

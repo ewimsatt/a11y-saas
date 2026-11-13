@@ -1,15 +1,31 @@
 import { PrismaClient } from '../generated/prisma/client.ts';
 
+export { ensureClaimedStageTransport, reconcileExactEnqueuedTransport } from './stageTransport.ts';
+
 export {
+  canonicalizeTerminalStageDispatches,
   claimNextStageDispatch,
   finalizeStageDispatchEnqueueFailure,
-  finalizeStageDispatchEnqueueSuccess
+  finalizeStageDispatchEnqueueSuccess,
+  claimStageRun,
+  renewStageRun,
+  lockStageRun,
+  releaseStageRun,
+  advanceStageRun,
+  completeStageRun,
+  failStageRun,
+  findStaleEnqueuedStages,
+  releaseEnqueuedStageForReconcile,
+  terminalizeAbandonedStageRun
 } from './stageDispatchLedger.ts';
 export type {
   ClaimedStageDispatch,
   StageDispatchClaimOptions,
   StageDispatchFailureFinalization,
-  StageDispatchFinalization
+  StageDispatchFinalization,
+  StageRun,
+  StageRunClaimOptions,
+  EnqueuedStage
 } from './stageDispatchLedger.ts';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';

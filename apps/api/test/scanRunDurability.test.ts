@@ -69,7 +69,7 @@ describe('durable scan-run intake', () => {
       data: [{ scanId: 'scan-1', url: 'https://example.test/one' }]
     });
     expect(mocks.dispatchCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({ scanId: 'scan-1', jobId: 'scan-1-crawl', state: 'PENDING' })
+      data: expect.objectContaining({ scanId: 'scan-1', jobId: 'scan-1-crawl-0', stage: 'CRAWL', generation: 0, state: 'PENDING' })
     });
     expect(mocks.dispatchScan).toHaveBeenCalledWith('scan-1');
   });
