@@ -104,14 +104,21 @@ export type ScanScalarFieldEnum = (typeof ScanScalarFieldEnum)[keyof typeof Scan
 export const ScanDispatchScalarFieldEnum = {
   scanId: 'scanId',
   jobId: 'jobId',
+  stage: 'stage',
+  generation: 'generation',
   state: 'state',
   attemptCount: 'attemptCount',
+  dispatchAttemptCount: 'dispatchAttemptCount',
+  runAttemptCount: 'runAttemptCount',
   nextAttemptAt: 'nextAttemptAt',
   lastAttemptAt: 'lastAttemptAt',
   enqueuedAt: 'enqueuedAt',
+  completedAt: 'completedAt',
   lastErrorCode: 'lastErrorCode',
   claimToken: 'claimToken',
   leaseUntil: 'leaseUntil',
+  runClaimToken: 'runClaimToken',
+  runLeaseUntil: 'runLeaseUntil',
   updatedAt: 'updatedAt'
 } as const
 

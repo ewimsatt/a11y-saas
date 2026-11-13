@@ -27,104 +27,158 @@ export type AggregateScanDispatch = {
 }
 
 export type ScanDispatchAvgAggregateOutputType = {
+  generation: number | null
   attemptCount: number | null
+  dispatchAttemptCount: number | null
+  runAttemptCount: number | null
 }
 
 export type ScanDispatchSumAggregateOutputType = {
+  generation: number | null
   attemptCount: number | null
+  dispatchAttemptCount: number | null
+  runAttemptCount: number | null
 }
 
 export type ScanDispatchMinAggregateOutputType = {
   scanId: string | null
   jobId: string | null
+  stage: $Enums.DispatchStage | null
+  generation: number | null
   state: $Enums.DispatchState | null
   attemptCount: number | null
+  dispatchAttemptCount: number | null
+  runAttemptCount: number | null
   nextAttemptAt: Date | null
   lastAttemptAt: Date | null
   enqueuedAt: Date | null
+  completedAt: Date | null
   lastErrorCode: string | null
   claimToken: string | null
   leaseUntil: Date | null
+  runClaimToken: string | null
+  runLeaseUntil: Date | null
   updatedAt: Date | null
 }
 
 export type ScanDispatchMaxAggregateOutputType = {
   scanId: string | null
   jobId: string | null
+  stage: $Enums.DispatchStage | null
+  generation: number | null
   state: $Enums.DispatchState | null
   attemptCount: number | null
+  dispatchAttemptCount: number | null
+  runAttemptCount: number | null
   nextAttemptAt: Date | null
   lastAttemptAt: Date | null
   enqueuedAt: Date | null
+  completedAt: Date | null
   lastErrorCode: string | null
   claimToken: string | null
   leaseUntil: Date | null
+  runClaimToken: string | null
+  runLeaseUntil: Date | null
   updatedAt: Date | null
 }
 
 export type ScanDispatchCountAggregateOutputType = {
   scanId: number
   jobId: number
+  stage: number
+  generation: number
   state: number
   attemptCount: number
+  dispatchAttemptCount: number
+  runAttemptCount: number
   nextAttemptAt: number
   lastAttemptAt: number
   enqueuedAt: number
+  completedAt: number
   lastErrorCode: number
   claimToken: number
   leaseUntil: number
+  runClaimToken: number
+  runLeaseUntil: number
   updatedAt: number
   _all: number
 }
 
 
 export type ScanDispatchAvgAggregateInputType = {
+  generation?: true
   attemptCount?: true
+  dispatchAttemptCount?: true
+  runAttemptCount?: true
 }
 
 export type ScanDispatchSumAggregateInputType = {
+  generation?: true
   attemptCount?: true
+  dispatchAttemptCount?: true
+  runAttemptCount?: true
 }
 
 export type ScanDispatchMinAggregateInputType = {
   scanId?: true
   jobId?: true
+  stage?: true
+  generation?: true
   state?: true
   attemptCount?: true
+  dispatchAttemptCount?: true
+  runAttemptCount?: true
   nextAttemptAt?: true
   lastAttemptAt?: true
   enqueuedAt?: true
+  completedAt?: true
   lastErrorCode?: true
   claimToken?: true
   leaseUntil?: true
+  runClaimToken?: true
+  runLeaseUntil?: true
   updatedAt?: true
 }
 
 export type ScanDispatchMaxAggregateInputType = {
   scanId?: true
   jobId?: true
+  stage?: true
+  generation?: true
   state?: true
   attemptCount?: true
+  dispatchAttemptCount?: true
+  runAttemptCount?: true
   nextAttemptAt?: true
   lastAttemptAt?: true
   enqueuedAt?: true
+  completedAt?: true
   lastErrorCode?: true
   claimToken?: true
   leaseUntil?: true
+  runClaimToken?: true
+  runLeaseUntil?: true
   updatedAt?: true
 }
 
 export type ScanDispatchCountAggregateInputType = {
   scanId?: true
   jobId?: true
+  stage?: true
+  generation?: true
   state?: true
   attemptCount?: true
+  dispatchAttemptCount?: true
+  runAttemptCount?: true
   nextAttemptAt?: true
   lastAttemptAt?: true
   enqueuedAt?: true
+  completedAt?: true
   lastErrorCode?: true
   claimToken?: true
   leaseUntil?: true
+  runClaimToken?: true
+  runLeaseUntil?: true
   updatedAt?: true
   _all?: true
 }
@@ -218,14 +272,21 @@ export type ScanDispatchGroupByArgs<ExtArgs extends runtime.Types.Extensions.Int
 export type ScanDispatchGroupByOutputType = {
   scanId: string
   jobId: string
+  stage: $Enums.DispatchStage
+  generation: number
   state: $Enums.DispatchState
   attemptCount: number
+  dispatchAttemptCount: number
+  runAttemptCount: number
   nextAttemptAt: Date
   lastAttemptAt: Date | null
   enqueuedAt: Date | null
+  completedAt: Date | null
   lastErrorCode: string | null
   claimToken: string | null
   leaseUntil: Date | null
+  runClaimToken: string | null
+  runLeaseUntil: Date | null
   updatedAt: Date
   _count: ScanDispatchCountAggregateOutputType | null
   _avg: ScanDispatchAvgAggregateOutputType | null
@@ -255,14 +316,21 @@ export type ScanDispatchWhereInput = {
   NOT?: Prisma.ScanDispatchWhereInput | Prisma.ScanDispatchWhereInput[]
   scanId?: Prisma.StringFilter<"ScanDispatch"> | string
   jobId?: Prisma.StringFilter<"ScanDispatch"> | string
+  stage?: Prisma.EnumDispatchStageFilter<"ScanDispatch"> | $Enums.DispatchStage
+  generation?: Prisma.IntFilter<"ScanDispatch"> | number
   state?: Prisma.EnumDispatchStateFilter<"ScanDispatch"> | $Enums.DispatchState
   attemptCount?: Prisma.IntFilter<"ScanDispatch"> | number
+  dispatchAttemptCount?: Prisma.IntFilter<"ScanDispatch"> | number
+  runAttemptCount?: Prisma.IntFilter<"ScanDispatch"> | number
   nextAttemptAt?: Prisma.DateTimeFilter<"ScanDispatch"> | Date | string
   lastAttemptAt?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
   enqueuedAt?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
+  completedAt?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
   lastErrorCode?: Prisma.StringNullableFilter<"ScanDispatch"> | string | null
   claimToken?: Prisma.UuidNullableFilter<"ScanDispatch"> | string | null
   leaseUntil?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
+  runClaimToken?: Prisma.UuidNullableFilter<"ScanDispatch"> | string | null
+  runLeaseUntil?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
   updatedAt?: Prisma.DateTimeFilter<"ScanDispatch"> | Date | string
   scan?: Prisma.XOR<Prisma.ScanScalarRelationFilter, Prisma.ScanWhereInput>
 }
@@ -270,14 +338,21 @@ export type ScanDispatchWhereInput = {
 export type ScanDispatchOrderByWithRelationInput = {
   scanId?: Prisma.SortOrder
   jobId?: Prisma.SortOrder
+  stage?: Prisma.SortOrder
+  generation?: Prisma.SortOrder
   state?: Prisma.SortOrder
   attemptCount?: Prisma.SortOrder
+  dispatchAttemptCount?: Prisma.SortOrder
+  runAttemptCount?: Prisma.SortOrder
   nextAttemptAt?: Prisma.SortOrder
   lastAttemptAt?: Prisma.SortOrderInput | Prisma.SortOrder
   enqueuedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   lastErrorCode?: Prisma.SortOrderInput | Prisma.SortOrder
   claimToken?: Prisma.SortOrderInput | Prisma.SortOrder
   leaseUntil?: Prisma.SortOrderInput | Prisma.SortOrder
+  runClaimToken?: Prisma.SortOrderInput | Prisma.SortOrder
+  runLeaseUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   scan?: Prisma.ScanOrderByWithRelationInput
 }
@@ -288,14 +363,21 @@ export type ScanDispatchWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.ScanDispatchWhereInput | Prisma.ScanDispatchWhereInput[]
   OR?: Prisma.ScanDispatchWhereInput[]
   NOT?: Prisma.ScanDispatchWhereInput | Prisma.ScanDispatchWhereInput[]
+  stage?: Prisma.EnumDispatchStageFilter<"ScanDispatch"> | $Enums.DispatchStage
+  generation?: Prisma.IntFilter<"ScanDispatch"> | number
   state?: Prisma.EnumDispatchStateFilter<"ScanDispatch"> | $Enums.DispatchState
   attemptCount?: Prisma.IntFilter<"ScanDispatch"> | number
+  dispatchAttemptCount?: Prisma.IntFilter<"ScanDispatch"> | number
+  runAttemptCount?: Prisma.IntFilter<"ScanDispatch"> | number
   nextAttemptAt?: Prisma.DateTimeFilter<"ScanDispatch"> | Date | string
   lastAttemptAt?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
   enqueuedAt?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
+  completedAt?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
   lastErrorCode?: Prisma.StringNullableFilter<"ScanDispatch"> | string | null
   claimToken?: Prisma.UuidNullableFilter<"ScanDispatch"> | string | null
   leaseUntil?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
+  runClaimToken?: Prisma.UuidNullableFilter<"ScanDispatch"> | string | null
+  runLeaseUntil?: Prisma.DateTimeNullableFilter<"ScanDispatch"> | Date | string | null
   updatedAt?: Prisma.DateTimeFilter<"ScanDispatch"> | Date | string
   scan?: Prisma.XOR<Prisma.ScanScalarRelationFilter, Prisma.ScanWhereInput>
 }, "scanId" | "jobId">
@@ -303,14 +385,21 @@ export type ScanDispatchWhereUniqueInput = Prisma.AtLeast<{
 export type ScanDispatchOrderByWithAggregationInput = {
   scanId?: Prisma.SortOrder
   jobId?: Prisma.SortOrder
+  stage?: Prisma.SortOrder
+  generation?: Prisma.SortOrder
   state?: Prisma.SortOrder
   attemptCount?: Prisma.SortOrder
+  dispatchAttemptCount?: Prisma.SortOrder
+  runAttemptCount?: Prisma.SortOrder
   nextAttemptAt?: Prisma.SortOrder
   lastAttemptAt?: Prisma.SortOrderInput | Prisma.SortOrder
   enqueuedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   lastErrorCode?: Prisma.SortOrderInput | Prisma.SortOrder
   claimToken?: Prisma.SortOrderInput | Prisma.SortOrder
   leaseUntil?: Prisma.SortOrderInput | Prisma.SortOrder
+  runClaimToken?: Prisma.SortOrderInput | Prisma.SortOrder
+  runLeaseUntil?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.ScanDispatchCountOrderByAggregateInput
   _avg?: Prisma.ScanDispatchAvgOrderByAggregateInput
@@ -325,27 +414,41 @@ export type ScanDispatchScalarWhereWithAggregatesInput = {
   NOT?: Prisma.ScanDispatchScalarWhereWithAggregatesInput | Prisma.ScanDispatchScalarWhereWithAggregatesInput[]
   scanId?: Prisma.StringWithAggregatesFilter<"ScanDispatch"> | string
   jobId?: Prisma.StringWithAggregatesFilter<"ScanDispatch"> | string
+  stage?: Prisma.EnumDispatchStageWithAggregatesFilter<"ScanDispatch"> | $Enums.DispatchStage
+  generation?: Prisma.IntWithAggregatesFilter<"ScanDispatch"> | number
   state?: Prisma.EnumDispatchStateWithAggregatesFilter<"ScanDispatch"> | $Enums.DispatchState
   attemptCount?: Prisma.IntWithAggregatesFilter<"ScanDispatch"> | number
+  dispatchAttemptCount?: Prisma.IntWithAggregatesFilter<"ScanDispatch"> | number
+  runAttemptCount?: Prisma.IntWithAggregatesFilter<"ScanDispatch"> | number
   nextAttemptAt?: Prisma.DateTimeWithAggregatesFilter<"ScanDispatch"> | Date | string
   lastAttemptAt?: Prisma.DateTimeNullableWithAggregatesFilter<"ScanDispatch"> | Date | string | null
   enqueuedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"ScanDispatch"> | Date | string | null
+  completedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"ScanDispatch"> | Date | string | null
   lastErrorCode?: Prisma.StringNullableWithAggregatesFilter<"ScanDispatch"> | string | null
   claimToken?: Prisma.UuidNullableWithAggregatesFilter<"ScanDispatch"> | string | null
   leaseUntil?: Prisma.DateTimeNullableWithAggregatesFilter<"ScanDispatch"> | Date | string | null
+  runClaimToken?: Prisma.UuidNullableWithAggregatesFilter<"ScanDispatch"> | string | null
+  runLeaseUntil?: Prisma.DateTimeNullableWithAggregatesFilter<"ScanDispatch"> | Date | string | null
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"ScanDispatch"> | Date | string
 }
 
 export type ScanDispatchCreateInput = {
   jobId: string
+  stage?: $Enums.DispatchStage
+  generation?: number
   state?: $Enums.DispatchState
   attemptCount?: number
+  dispatchAttemptCount?: number
+  runAttemptCount?: number
   nextAttemptAt?: Date | string
   lastAttemptAt?: Date | string | null
   enqueuedAt?: Date | string | null
+  completedAt?: Date | string | null
   lastErrorCode?: string | null
   claimToken?: string | null
   leaseUntil?: Date | string | null
+  runClaimToken?: string | null
+  runLeaseUntil?: Date | string | null
   updatedAt?: Date | string
   scan: Prisma.ScanCreateNestedOneWithoutDispatchInput
 }
@@ -353,27 +456,41 @@ export type ScanDispatchCreateInput = {
 export type ScanDispatchUncheckedCreateInput = {
   scanId: string
   jobId: string
+  stage?: $Enums.DispatchStage
+  generation?: number
   state?: $Enums.DispatchState
   attemptCount?: number
+  dispatchAttemptCount?: number
+  runAttemptCount?: number
   nextAttemptAt?: Date | string
   lastAttemptAt?: Date | string | null
   enqueuedAt?: Date | string | null
+  completedAt?: Date | string | null
   lastErrorCode?: string | null
   claimToken?: string | null
   leaseUntil?: Date | string | null
+  runClaimToken?: string | null
+  runLeaseUntil?: Date | string | null
   updatedAt?: Date | string
 }
 
 export type ScanDispatchUpdateInput = {
   jobId?: Prisma.StringFieldUpdateOperationsInput | string
+  stage?: Prisma.EnumDispatchStageFieldUpdateOperationsInput | $Enums.DispatchStage
+  generation?: Prisma.IntFieldUpdateOperationsInput | number
   state?: Prisma.EnumDispatchStateFieldUpdateOperationsInput | $Enums.DispatchState
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  dispatchAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  runAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   nextAttemptAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   enqueuedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastErrorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   claimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   leaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  runClaimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  runLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scan?: Prisma.ScanUpdateOneRequiredWithoutDispatchNestedInput
 }
@@ -381,55 +498,83 @@ export type ScanDispatchUpdateInput = {
 export type ScanDispatchUncheckedUpdateInput = {
   scanId?: Prisma.StringFieldUpdateOperationsInput | string
   jobId?: Prisma.StringFieldUpdateOperationsInput | string
+  stage?: Prisma.EnumDispatchStageFieldUpdateOperationsInput | $Enums.DispatchStage
+  generation?: Prisma.IntFieldUpdateOperationsInput | number
   state?: Prisma.EnumDispatchStateFieldUpdateOperationsInput | $Enums.DispatchState
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  dispatchAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  runAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   nextAttemptAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   enqueuedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastErrorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   claimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   leaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  runClaimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  runLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type ScanDispatchCreateManyInput = {
   scanId: string
   jobId: string
+  stage?: $Enums.DispatchStage
+  generation?: number
   state?: $Enums.DispatchState
   attemptCount?: number
+  dispatchAttemptCount?: number
+  runAttemptCount?: number
   nextAttemptAt?: Date | string
   lastAttemptAt?: Date | string | null
   enqueuedAt?: Date | string | null
+  completedAt?: Date | string | null
   lastErrorCode?: string | null
   claimToken?: string | null
   leaseUntil?: Date | string | null
+  runClaimToken?: string | null
+  runLeaseUntil?: Date | string | null
   updatedAt?: Date | string
 }
 
 export type ScanDispatchUpdateManyMutationInput = {
   jobId?: Prisma.StringFieldUpdateOperationsInput | string
+  stage?: Prisma.EnumDispatchStageFieldUpdateOperationsInput | $Enums.DispatchStage
+  generation?: Prisma.IntFieldUpdateOperationsInput | number
   state?: Prisma.EnumDispatchStateFieldUpdateOperationsInput | $Enums.DispatchState
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  dispatchAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  runAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   nextAttemptAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   enqueuedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastErrorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   claimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   leaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  runClaimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  runLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type ScanDispatchUncheckedUpdateManyInput = {
   scanId?: Prisma.StringFieldUpdateOperationsInput | string
   jobId?: Prisma.StringFieldUpdateOperationsInput | string
+  stage?: Prisma.EnumDispatchStageFieldUpdateOperationsInput | $Enums.DispatchStage
+  generation?: Prisma.IntFieldUpdateOperationsInput | number
   state?: Prisma.EnumDispatchStateFieldUpdateOperationsInput | $Enums.DispatchState
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  dispatchAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  runAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   nextAttemptAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   enqueuedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastErrorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   claimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   leaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  runClaimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  runLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -441,51 +586,78 @@ export type ScanDispatchNullableScalarRelationFilter = {
 export type ScanDispatchCountOrderByAggregateInput = {
   scanId?: Prisma.SortOrder
   jobId?: Prisma.SortOrder
+  stage?: Prisma.SortOrder
+  generation?: Prisma.SortOrder
   state?: Prisma.SortOrder
   attemptCount?: Prisma.SortOrder
+  dispatchAttemptCount?: Prisma.SortOrder
+  runAttemptCount?: Prisma.SortOrder
   nextAttemptAt?: Prisma.SortOrder
   lastAttemptAt?: Prisma.SortOrder
   enqueuedAt?: Prisma.SortOrder
+  completedAt?: Prisma.SortOrder
   lastErrorCode?: Prisma.SortOrder
   claimToken?: Prisma.SortOrder
   leaseUntil?: Prisma.SortOrder
+  runClaimToken?: Prisma.SortOrder
+  runLeaseUntil?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type ScanDispatchAvgOrderByAggregateInput = {
+  generation?: Prisma.SortOrder
   attemptCount?: Prisma.SortOrder
+  dispatchAttemptCount?: Prisma.SortOrder
+  runAttemptCount?: Prisma.SortOrder
 }
 
 export type ScanDispatchMaxOrderByAggregateInput = {
   scanId?: Prisma.SortOrder
   jobId?: Prisma.SortOrder
+  stage?: Prisma.SortOrder
+  generation?: Prisma.SortOrder
   state?: Prisma.SortOrder
   attemptCount?: Prisma.SortOrder
+  dispatchAttemptCount?: Prisma.SortOrder
+  runAttemptCount?: Prisma.SortOrder
   nextAttemptAt?: Prisma.SortOrder
   lastAttemptAt?: Prisma.SortOrder
   enqueuedAt?: Prisma.SortOrder
+  completedAt?: Prisma.SortOrder
   lastErrorCode?: Prisma.SortOrder
   claimToken?: Prisma.SortOrder
   leaseUntil?: Prisma.SortOrder
+  runClaimToken?: Prisma.SortOrder
+  runLeaseUntil?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type ScanDispatchMinOrderByAggregateInput = {
   scanId?: Prisma.SortOrder
   jobId?: Prisma.SortOrder
+  stage?: Prisma.SortOrder
+  generation?: Prisma.SortOrder
   state?: Prisma.SortOrder
   attemptCount?: Prisma.SortOrder
+  dispatchAttemptCount?: Prisma.SortOrder
+  runAttemptCount?: Prisma.SortOrder
   nextAttemptAt?: Prisma.SortOrder
   lastAttemptAt?: Prisma.SortOrder
   enqueuedAt?: Prisma.SortOrder
+  completedAt?: Prisma.SortOrder
   lastErrorCode?: Prisma.SortOrder
   claimToken?: Prisma.SortOrder
   leaseUntil?: Prisma.SortOrder
+  runClaimToken?: Prisma.SortOrder
+  runLeaseUntil?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type ScanDispatchSumOrderByAggregateInput = {
+  generation?: Prisma.SortOrder
   attemptCount?: Prisma.SortOrder
+  dispatchAttemptCount?: Prisma.SortOrder
+  runAttemptCount?: Prisma.SortOrder
 }
 
 export type ScanDispatchCreateNestedOneWithoutScanInput = {
@@ -520,8 +692,8 @@ export type ScanDispatchUncheckedUpdateOneWithoutScanNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ScanDispatchUpdateToOneWithWhereWithoutScanInput, Prisma.ScanDispatchUpdateWithoutScanInput>, Prisma.ScanDispatchUncheckedUpdateWithoutScanInput>
 }
 
-export type EnumDispatchStateFieldUpdateOperationsInput = {
-  set?: $Enums.DispatchState
+export type EnumDispatchStageFieldUpdateOperationsInput = {
+  set?: $Enums.DispatchStage
 }
 
 export type IntFieldUpdateOperationsInput = {
@@ -532,29 +704,47 @@ export type IntFieldUpdateOperationsInput = {
   divide?: number
 }
 
+export type EnumDispatchStateFieldUpdateOperationsInput = {
+  set?: $Enums.DispatchState
+}
+
 export type ScanDispatchCreateWithoutScanInput = {
   jobId: string
+  stage?: $Enums.DispatchStage
+  generation?: number
   state?: $Enums.DispatchState
   attemptCount?: number
+  dispatchAttemptCount?: number
+  runAttemptCount?: number
   nextAttemptAt?: Date | string
   lastAttemptAt?: Date | string | null
   enqueuedAt?: Date | string | null
+  completedAt?: Date | string | null
   lastErrorCode?: string | null
   claimToken?: string | null
   leaseUntil?: Date | string | null
+  runClaimToken?: string | null
+  runLeaseUntil?: Date | string | null
   updatedAt?: Date | string
 }
 
 export type ScanDispatchUncheckedCreateWithoutScanInput = {
   jobId: string
+  stage?: $Enums.DispatchStage
+  generation?: number
   state?: $Enums.DispatchState
   attemptCount?: number
+  dispatchAttemptCount?: number
+  runAttemptCount?: number
   nextAttemptAt?: Date | string
   lastAttemptAt?: Date | string | null
   enqueuedAt?: Date | string | null
+  completedAt?: Date | string | null
   lastErrorCode?: string | null
   claimToken?: string | null
   leaseUntil?: Date | string | null
+  runClaimToken?: string | null
+  runLeaseUntil?: Date | string | null
   updatedAt?: Date | string
 }
 
@@ -576,27 +766,41 @@ export type ScanDispatchUpdateToOneWithWhereWithoutScanInput = {
 
 export type ScanDispatchUpdateWithoutScanInput = {
   jobId?: Prisma.StringFieldUpdateOperationsInput | string
+  stage?: Prisma.EnumDispatchStageFieldUpdateOperationsInput | $Enums.DispatchStage
+  generation?: Prisma.IntFieldUpdateOperationsInput | number
   state?: Prisma.EnumDispatchStateFieldUpdateOperationsInput | $Enums.DispatchState
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  dispatchAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  runAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   nextAttemptAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   enqueuedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastErrorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   claimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   leaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  runClaimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  runLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type ScanDispatchUncheckedUpdateWithoutScanInput = {
   jobId?: Prisma.StringFieldUpdateOperationsInput | string
+  stage?: Prisma.EnumDispatchStageFieldUpdateOperationsInput | $Enums.DispatchStage
+  generation?: Prisma.IntFieldUpdateOperationsInput | number
   state?: Prisma.EnumDispatchStateFieldUpdateOperationsInput | $Enums.DispatchState
   attemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  dispatchAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
+  runAttemptCount?: Prisma.IntFieldUpdateOperationsInput | number
   nextAttemptAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   enqueuedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   lastErrorCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   claimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   leaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  runClaimToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  runLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -605,14 +809,21 @@ export type ScanDispatchUncheckedUpdateWithoutScanInput = {
 export type ScanDispatchSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   scanId?: boolean
   jobId?: boolean
+  stage?: boolean
+  generation?: boolean
   state?: boolean
   attemptCount?: boolean
+  dispatchAttemptCount?: boolean
+  runAttemptCount?: boolean
   nextAttemptAt?: boolean
   lastAttemptAt?: boolean
   enqueuedAt?: boolean
+  completedAt?: boolean
   lastErrorCode?: boolean
   claimToken?: boolean
   leaseUntil?: boolean
+  runClaimToken?: boolean
+  runLeaseUntil?: boolean
   updatedAt?: boolean
   scan?: boolean | Prisma.ScanDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["scanDispatch"]>
@@ -620,14 +831,21 @@ export type ScanDispatchSelect<ExtArgs extends runtime.Types.Extensions.Internal
 export type ScanDispatchSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   scanId?: boolean
   jobId?: boolean
+  stage?: boolean
+  generation?: boolean
   state?: boolean
   attemptCount?: boolean
+  dispatchAttemptCount?: boolean
+  runAttemptCount?: boolean
   nextAttemptAt?: boolean
   lastAttemptAt?: boolean
   enqueuedAt?: boolean
+  completedAt?: boolean
   lastErrorCode?: boolean
   claimToken?: boolean
   leaseUntil?: boolean
+  runClaimToken?: boolean
+  runLeaseUntil?: boolean
   updatedAt?: boolean
   scan?: boolean | Prisma.ScanDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["scanDispatch"]>
@@ -635,14 +853,21 @@ export type ScanDispatchSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
 export type ScanDispatchSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   scanId?: boolean
   jobId?: boolean
+  stage?: boolean
+  generation?: boolean
   state?: boolean
   attemptCount?: boolean
+  dispatchAttemptCount?: boolean
+  runAttemptCount?: boolean
   nextAttemptAt?: boolean
   lastAttemptAt?: boolean
   enqueuedAt?: boolean
+  completedAt?: boolean
   lastErrorCode?: boolean
   claimToken?: boolean
   leaseUntil?: boolean
+  runClaimToken?: boolean
+  runLeaseUntil?: boolean
   updatedAt?: boolean
   scan?: boolean | Prisma.ScanDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["scanDispatch"]>
@@ -650,18 +875,25 @@ export type ScanDispatchSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
 export type ScanDispatchSelectScalar = {
   scanId?: boolean
   jobId?: boolean
+  stage?: boolean
+  generation?: boolean
   state?: boolean
   attemptCount?: boolean
+  dispatchAttemptCount?: boolean
+  runAttemptCount?: boolean
   nextAttemptAt?: boolean
   lastAttemptAt?: boolean
   enqueuedAt?: boolean
+  completedAt?: boolean
   lastErrorCode?: boolean
   claimToken?: boolean
   leaseUntil?: boolean
+  runClaimToken?: boolean
+  runLeaseUntil?: boolean
   updatedAt?: boolean
 }
 
-export type ScanDispatchOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"scanId" | "jobId" | "state" | "attemptCount" | "nextAttemptAt" | "lastAttemptAt" | "enqueuedAt" | "lastErrorCode" | "claimToken" | "leaseUntil" | "updatedAt", ExtArgs["result"]["scanDispatch"]>
+export type ScanDispatchOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"scanId" | "jobId" | "stage" | "generation" | "state" | "attemptCount" | "dispatchAttemptCount" | "runAttemptCount" | "nextAttemptAt" | "lastAttemptAt" | "enqueuedAt" | "completedAt" | "lastErrorCode" | "claimToken" | "leaseUntil" | "runClaimToken" | "runLeaseUntil" | "updatedAt", ExtArgs["result"]["scanDispatch"]>
 export type ScanDispatchInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   scan?: boolean | Prisma.ScanDefaultArgs<ExtArgs>
 }
@@ -680,14 +912,21 @@ export type $ScanDispatchPayload<ExtArgs extends runtime.Types.Extensions.Intern
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     scanId: string
     jobId: string
+    stage: $Enums.DispatchStage
+    generation: number
     state: $Enums.DispatchState
     attemptCount: number
+    dispatchAttemptCount: number
+    runAttemptCount: number
     nextAttemptAt: Date
     lastAttemptAt: Date | null
     enqueuedAt: Date | null
+    completedAt: Date | null
     lastErrorCode: string | null
     claimToken: string | null
     leaseUntil: Date | null
+    runClaimToken: string | null
+    runLeaseUntil: Date | null
     updatedAt: Date
   }, ExtArgs["result"]["scanDispatch"]>
   composites: {}
@@ -1115,14 +1354,21 @@ export interface Prisma__ScanDispatchClient<T, Null = never, ExtArgs extends run
 export interface ScanDispatchFieldRefs {
   readonly scanId: Prisma.FieldRef<"ScanDispatch", 'String'>
   readonly jobId: Prisma.FieldRef<"ScanDispatch", 'String'>
+  readonly stage: Prisma.FieldRef<"ScanDispatch", 'DispatchStage'>
+  readonly generation: Prisma.FieldRef<"ScanDispatch", 'Int'>
   readonly state: Prisma.FieldRef<"ScanDispatch", 'DispatchState'>
   readonly attemptCount: Prisma.FieldRef<"ScanDispatch", 'Int'>
+  readonly dispatchAttemptCount: Prisma.FieldRef<"ScanDispatch", 'Int'>
+  readonly runAttemptCount: Prisma.FieldRef<"ScanDispatch", 'Int'>
   readonly nextAttemptAt: Prisma.FieldRef<"ScanDispatch", 'DateTime'>
   readonly lastAttemptAt: Prisma.FieldRef<"ScanDispatch", 'DateTime'>
   readonly enqueuedAt: Prisma.FieldRef<"ScanDispatch", 'DateTime'>
+  readonly completedAt: Prisma.FieldRef<"ScanDispatch", 'DateTime'>
   readonly lastErrorCode: Prisma.FieldRef<"ScanDispatch", 'String'>
   readonly claimToken: Prisma.FieldRef<"ScanDispatch", 'String'>
   readonly leaseUntil: Prisma.FieldRef<"ScanDispatch", 'DateTime'>
+  readonly runClaimToken: Prisma.FieldRef<"ScanDispatch", 'String'>
+  readonly runLeaseUntil: Prisma.FieldRef<"ScanDispatch", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"ScanDispatch", 'DateTime'>
 }
     

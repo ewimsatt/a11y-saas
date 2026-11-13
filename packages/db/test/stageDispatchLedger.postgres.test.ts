@@ -1,11 +1,17 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '../generated/prisma/client.ts';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  canonicalizeTerminalStageDispatches,
   claimNextStageDispatch,
+  claimStageRun,
   finalizeStageDispatchEnqueueFailure,
-  finalizeStageDispatchEnqueueSuccess
+  finalizeStageDispatchEnqueueSuccess,
+  terminalizeAbandonedStageRun
 } from '../src/stageDispatchLedger.ts';
 
 const connectionString = process.env.STAGE_DISPATCH_TEST_DATABASE_URL;
@@ -19,6 +25,15 @@ if (!/^a11y_stage_dispatch_test(?:_|$)/.test(databaseName)) {
 }
 
 const runPrefix = `stage-ledger-${crypto.randomUUID()}`;
+const migrationPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../prisma/migrations/20261112090000_runtime_stage_dispatch_ledger/migration.sql');
+
+async function applyExhaustedLegacyDispatchMigration(client: PrismaClient): Promise<void> {
+  const sql = fs.readFileSync(migrationPath, 'utf8');
+  const start = sql.indexOf('-- Historical dispatching capped retries');
+  const end = sql.indexOf('DROP INDEX', start);
+  if (start < 0 || end < 0) throw new Error('missing exhausted legacy dispatch migration block');
+  await client.$executeRawUnsafe(sql.slice(start, end));
+}
 
 function createClient(): { prisma: PrismaClient; pool: Pool } {
   const pool = new Pool({ connectionString, max: 1 });
@@ -79,6 +94,29 @@ describe('PostgreSQL stage-dispatch token-fenced foundation', () => {
     await first.prisma.project.deleteMany({ where: { name: { startsWith: runPrefix } } });
     await Promise.all([first.prisma.$disconnect(), second.prisma.$disconnect()]);
     await Promise.all([first.pool.end(), second.pool.end()]);
+  });
+
+  it('upgrades an old-schema exhausted PENDING dispatch into one terminal scan, dispatch, and page outcome', async () => {
+    const scanId = await createDispatch(first.prisma, 'legacy-exhausted');
+    const page = await first.prisma.page.create({ data: { scanId, url: 'https://legacy-exhausted.test', outcome: 'PENDING' } });
+    await first.prisma.$executeRaw`
+      UPDATE "ScanDispatch"
+      SET "attemptCount" = 5, "dispatchAttemptCount" = 5,
+          "claimToken" = '00000000-0000-4000-8000-000000000099'::uuid,
+          "leaseUntil" = CURRENT_TIMESTAMP + INTERVAL '1 hour',
+          "runClaimToken" = '00000000-0000-4000-8000-000000000098'::uuid,
+          "runLeaseUntil" = CURRENT_TIMESTAMP + INTERVAL '1 hour'
+      WHERE "scanId" = ${scanId}
+    `;
+
+    await applyExhaustedLegacyDispatchMigration(first.prisma);
+
+    await expect(first.prisma.scan.findUniqueOrThrow({ where: { id: scanId } })).resolves.toMatchObject({ status: 'failed', coverage: 'FAILED' });
+    await expect(first.prisma.scanDispatch.findUniqueOrThrow({ where: { scanId } })).resolves.toMatchObject({
+      state: 'DEAD', claimToken: null, leaseUntil: null, runClaimToken: null, runLeaseUntil: null
+    });
+    await expect(first.prisma.page.findUniqueOrThrow({ where: { id: page.id } })).resolves.toMatchObject({ outcome: 'FAILED', error: 'Execution unavailable before analysis' });
+    await expect(claimNextStageDispatch(first.prisma, { scanId, stage: 'CRAWL', leaseMs: 30_000 })).resolves.toBeNull();
   });
 
   it('allows exactly one of two independent clients to claim one due dispatch with a durable token', async () => {
@@ -192,8 +230,7 @@ describe('PostgreSQL stage-dispatch token-fenced foundation', () => {
     await expect(finalizeStageDispatchEnqueueFailure(first.prisma, {
       scanId: failureScanId,
       claimToken: failureClaim!.claimToken,
-      errorCode: 'REDIS_UNAVAILABLE',
-      retryDelayMs: 5_000
+      errorCode: 'REDIS_UNAVAILABLE'
     })).resolves.toBe(false);
     expect(await first.prisma.scanDispatch.findUniqueOrThrow({ where: { scanId: failureScanId } })).toEqual(beforeExpiredFailure);
   });
@@ -211,8 +248,7 @@ describe('PostgreSQL stage-dispatch token-fenced foundation', () => {
     await expect(finalizeStageDispatchEnqueueFailure(first.prisma, {
       scanId,
       claimToken: 'not-a-uuid',
-      errorCode: 'REDIS_UNAVAILABLE',
-      retryDelayMs: 5_000
+      errorCode: 'REDIS_UNAVAILABLE'
     })).resolves.toBe(false);
     expect(await first.prisma.scanDispatch.findUniqueOrThrow({ where: { scanId } })).toEqual(before);
   });
@@ -261,8 +297,7 @@ describe('PostgreSQL stage-dispatch token-fenced foundation', () => {
     await expect(finalizeStageDispatchEnqueueFailure(first.prisma, {
       scanId,
       claimToken: firstClaim!.claimToken,
-      errorCode: 'REDIS_UNAVAILABLE',
-      retryDelayMs: 5_000
+      errorCode: 'REDIS_UNAVAILABLE'
     })).resolves.toBe(false);
     expect(await first.prisma.scanDispatch.findUniqueOrThrow({ where: { scanId } })).toEqual(beforeStaleFinalize);
 
@@ -270,8 +305,7 @@ describe('PostgreSQL stage-dispatch token-fenced foundation', () => {
     await expect(finalizeStageDispatchEnqueueFailure(second.prisma, {
       scanId,
       claimToken: secondClaim!.claimToken,
-      errorCode: 'REDIS_UNAVAILABLE',
-      retryDelayMs: 5_000
+      errorCode: 'REDIS_UNAVAILABLE'
     })).resolves.toBe(true);
     const afterRetry = await first.prisma.scanDispatch.findUniqueOrThrow({ where: { scanId } });
     const afterNow = await databaseNow(first.prisma);
@@ -283,7 +317,96 @@ describe('PostgreSQL stage-dispatch token-fenced foundation', () => {
       leaseUntil: null,
       lastErrorCode: 'REDIS_UNAVAILABLE'
     });
-    expect(afterRetry.nextAttemptAt.getTime()).toBeGreaterThanOrEqual(beforeRetry.getTime() + 4_900);
-    expect(afterRetry.nextAttemptAt.getTime()).toBeLessThanOrEqual(afterNow.getTime() + 5_100);
+    expect(afterRetry.nextAttemptAt.getTime()).toBeGreaterThanOrEqual(beforeRetry.getTime() + 900);
+    expect(afterRetry.nextAttemptAt.getTime()).toBeLessThanOrEqual(afterNow.getTime() + 1_100);
+  });
+
+  it('atomically absorbs the fifth dispatch failure without a sixth claim', async () => {
+    const scanId = await createDispatch(first.prisma, 'dispatch-exhaustion');
+    await first.prisma.page.create({ data: { scanId, url: 'https://dispatch-exhaustion.test' } });
+    await first.prisma.scanDispatch.update({
+      where: { scanId },
+      data: { dispatchAttemptCount: 4, attemptCount: 4 }
+    });
+    const claim = await claimNextStageDispatch(first.prisma, { leaseMs: 30_000, scanId });
+    expect(claim?.dispatchAttemptCount).toBe(4);
+
+    await expect(finalizeStageDispatchEnqueueFailure(first.prisma, {
+      scanId,
+      claimToken: claim!.claimToken,
+      errorCode: 'redis unavailable with secret detail'
+    })).resolves.toBe(true);
+
+    const [dispatch, scan, page] = await Promise.all([
+      first.prisma.scanDispatch.findUniqueOrThrow({ where: { scanId } }),
+      first.prisma.scan.findUniqueOrThrow({ where: { id: scanId } }),
+      first.prisma.page.findFirstOrThrow({ where: { scanId } })
+    ]);
+    expect(dispatch).toMatchObject({
+      state: 'DEAD',
+      dispatchAttemptCount: 5,
+      attemptCount: 5,
+      lastErrorCode: 'REDIS_UNAVAILABLE_WITH_SECRET_DETAIL',
+      claimToken: null,
+      leaseUntil: null
+    });
+    expect(dispatch.completedAt).not.toBeNull();
+    expect(scan).toMatchObject({ status: 'failed', coverage: 'FAILED' });
+    expect(scan.completedAt?.getTime()).toBe(dispatch.completedAt?.getTime());
+    expect(page).toMatchObject({ outcome: 'FAILED', error: 'Execution unavailable before analysis' });
+    await expect(claimNextStageDispatch(first.prisma, { leaseMs: 30_000, scanId })).resolves.toBeNull();
+  });
+
+  it('canonicalizes historical completed and failed scans into absorbing ledger terminals', async () => {
+    const completedId = await createDispatch(first.prisma, 'terminal-completed');
+    const failedId = await createDispatch(first.prisma, 'terminal-failed');
+    const completedAt = new Date('2026-11-12T12:00:00.000Z');
+    const failedAt = new Date('2026-11-12T12:01:00.000Z');
+    await first.prisma.scan.update({ where: { id: completedId }, data: { status: 'completed', coverage: 'COMPLETE', completedAt } });
+    await first.prisma.scan.update({ where: { id: failedId }, data: { status: 'failed', coverage: 'FAILED', completedAt: failedAt } });
+    await first.prisma.scanDispatch.update({ where: { scanId: failedId }, data: { state: 'ENQUEUED', enqueuedAt: new Date() } });
+
+    await expect(canonicalizeTerminalStageDispatches(first.prisma)).resolves.toBe(2);
+
+    const [completed, failed] = await Promise.all([
+      first.prisma.scanDispatch.findUniqueOrThrow({ where: { scanId: completedId } }),
+      first.prisma.scanDispatch.findUniqueOrThrow({ where: { scanId: failedId } })
+    ]);
+    expect(completed).toMatchObject({ state: 'COMPLETED', completedAt, claimToken: null, runClaimToken: null });
+    expect(failed).toMatchObject({ state: 'DEAD', completedAt: failedAt, claimToken: null, runClaimToken: null });
+    await expect(canonicalizeTerminalStageDispatches(first.prisma)).resolves.toBe(0);
+    await expect(claimNextStageDispatch(first.prisma, { leaseMs: 30_000 })).resolves.toBeNull();
+  });
+
+  it('terminalizes an abandoned third run after its DB-time lease expires and never grants a fourth run', async () => {
+    const scanId = await createDispatch(first.prisma, 'abandoned-third-run');
+    const jobId = `${scanId}-analyze-2`;
+    await first.prisma.page.create({ data: { scanId, url: 'https://abandoned-third-run.test' } });
+    await first.prisma.scan.update({ where: { id: scanId }, data: { status: 'analyzing' } });
+    await first.prisma.scanDispatch.update({
+      where: { scanId },
+      data: {
+        stage: 'ANALYZE', generation: 2, jobId, state: 'ENQUEUED', runAttemptCount: 3,
+        runClaimToken: '00000000-0000-4000-8000-000000000099'
+      }
+    });
+    await first.prisma.$executeRaw`
+      UPDATE "ScanDispatch" SET "runLeaseUntil" = CURRENT_TIMESTAMP - INTERVAL '1 second'
+      WHERE "scanId" = ${scanId}
+    `;
+
+    await expect(terminalizeAbandonedStageRun(first.prisma, {
+      scanId, stage: 'ANALYZE', generation: 2, jobId, runAttemptCount: 3
+    }, 'ABANDONED_RUN_EXHAUSTED')).resolves.toBe(true);
+
+    const [dispatch, scan, page] = await Promise.all([
+      first.prisma.scanDispatch.findUniqueOrThrow({ where: { scanId } }),
+      first.prisma.scan.findUniqueOrThrow({ where: { id: scanId } }),
+      first.prisma.page.findFirstOrThrow({ where: { scanId } })
+    ]);
+    expect(dispatch).toMatchObject({ state: 'DEAD', runAttemptCount: 3, runClaimToken: null, runLeaseUntil: null });
+    expect(scan).toMatchObject({ status: 'failed', coverage: 'FAILED' });
+    expect(page).toMatchObject({ outcome: 'FAILED', error: 'Page analysis failed' });
+    await expect(claimStageRun(first.prisma, { scanId, stage: 'ANALYZE', generation: 2, leaseMs: 30_000 })).resolves.toBeNull();
   });
 });

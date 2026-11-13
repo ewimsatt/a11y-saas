@@ -4,11 +4,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   update: vi.fn(),
+  ensureClaimedStageTransport: vi.fn(),
+  claimNextStageDispatch: vi.fn(),
+  finalizeStageDispatchEnqueueSuccess: vi.fn(),
+  finalizeStageDispatchEnqueueFailure: vi.fn(),
   getCrawlQueue: vi.fn(),
   discardCrawlQueue: vi.fn()
 }));
 
 vi.mock('@a11y/db', () => ({
+  ensureClaimedStageTransport: mocks.ensureClaimedStageTransport,
+  claimNextStageDispatch: mocks.claimNextStageDispatch,
+  finalizeStageDispatchEnqueueSuccess: mocks.finalizeStageDispatchEnqueueSuccess,
+  finalizeStageDispatchEnqueueFailure: mocks.finalizeStageDispatchEnqueueFailure,
   prisma: {
     scanDispatch: {
       findUnique: mocks.findUnique,
@@ -38,7 +46,17 @@ function validateBullMqJobId(jobId: string): void {
 describe('initial scan dispatcher', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mocks.findUnique.mockResolvedValue({ scanId: 'scan-1', jobId: 'scan-1-crawl', state: 'PENDING', attemptCount: 0 });
+    mocks.findUnique.mockResolvedValue({ scanId: 'scan-1', jobId: 'scan-1-crawl-0', state: 'PENDING', attemptCount: 0 });
+    mocks.claimNextStageDispatch.mockResolvedValue({
+      scanId: 'scan-1', jobId: 'scan-1-crawl-0', stage: 'CRAWL', generation: 0,
+      attemptCount: 0, dispatchAttemptCount: 0, claimToken: '00000000-0000-4000-8000-000000000001'
+    });
+    mocks.finalizeStageDispatchEnqueueSuccess.mockResolvedValue(true);
+    mocks.finalizeStageDispatchEnqueueFailure.mockResolvedValue(true);
+    mocks.ensureClaimedStageTransport.mockImplementation(async (queue, dispatch, name, data, options) => {
+      await queue.add(name, data, { ...options, jobId: dispatch.jobId });
+      return 'added';
+    });
   });
 
   it('uses a deterministic BullMQ-valid custom job ID', () => {
@@ -53,11 +71,9 @@ describe('initial scan dispatcher', () => {
 
     await expect(dispatchScan('scan-1')).resolves.toBe(false);
 
-    expect(add).toHaveBeenCalledWith(expect.anything(), { scanId: 'scan-1' }, expect.objectContaining({ jobId: 'scan-1-crawl' }));
-    expect(mocks.discardCrawlQueue).toHaveBeenCalledTimes(1);
-    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({
-      where: { scanId: 'scan-1' },
-      data: expect.objectContaining({ state: 'PENDING', attemptCount: 1, lastErrorCode: 'Error' })
+    expect(add).toHaveBeenCalledWith(expect.anything(), { scanId: 'scan-1', stage: 'CRAWL', generation: 0 }, expect.objectContaining({ jobId: 'scan-1-crawl-0' }));
+    expect(mocks.finalizeStageDispatchEnqueueFailure).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      scanId: 'scan-1', errorCode: 'Error'
     }));
   });
 
@@ -72,6 +88,6 @@ describe('initial scan dispatcher', () => {
 
     expect(mocks.discardCrawlQueue).toHaveBeenCalledTimes(1);
     expect(mocks.getCrawlQueue).toHaveBeenCalledTimes(2);
-    expect(recoveredQueue.add).toHaveBeenCalledWith(expect.anything(), { scanId: 'scan-1' }, expect.objectContaining({ jobId: 'scan-1-crawl' }));
+    expect(recoveredQueue.add).toHaveBeenCalledWith(expect.anything(), { scanId: 'scan-1', stage: 'CRAWL', generation: 0 }, expect.objectContaining({ jobId: 'scan-1-crawl-0' }));
   });
 });

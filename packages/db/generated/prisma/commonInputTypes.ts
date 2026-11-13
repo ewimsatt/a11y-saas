@@ -169,11 +169,11 @@ export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
 }
 
-export type EnumDispatchStateFilter<$PrismaModel = never> = {
-  equals?: $Enums.DispatchState | Prisma.EnumDispatchStateFieldRefInput<$PrismaModel>
-  in?: $Enums.DispatchState[] | Prisma.ListEnumDispatchStateFieldRefInput<$PrismaModel>
-  notIn?: $Enums.DispatchState[] | Prisma.ListEnumDispatchStateFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumDispatchStateFilter<$PrismaModel> | $Enums.DispatchState
+export type EnumDispatchStageFilter<$PrismaModel = never> = {
+  equals?: $Enums.DispatchStage | Prisma.EnumDispatchStageFieldRefInput<$PrismaModel>
+  in?: $Enums.DispatchStage[] | Prisma.ListEnumDispatchStageFieldRefInput<$PrismaModel>
+  notIn?: $Enums.DispatchStage[] | Prisma.ListEnumDispatchStageFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumDispatchStageFilter<$PrismaModel> | $Enums.DispatchStage
 }
 
 export type IntFilter<$PrismaModel = never> = {
@@ -185,6 +185,13 @@ export type IntFilter<$PrismaModel = never> = {
   gt?: number | Prisma.IntFieldRefInput<$PrismaModel>
   gte?: number | Prisma.IntFieldRefInput<$PrismaModel>
   not?: Prisma.NestedIntFilter<$PrismaModel> | number
+}
+
+export type EnumDispatchStateFilter<$PrismaModel = never> = {
+  equals?: $Enums.DispatchState | Prisma.EnumDispatchStateFieldRefInput<$PrismaModel>
+  in?: $Enums.DispatchState[] | Prisma.ListEnumDispatchStateFieldRefInput<$PrismaModel>
+  notIn?: $Enums.DispatchState[] | Prisma.ListEnumDispatchStateFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumDispatchStateFilter<$PrismaModel> | $Enums.DispatchState
 }
 
 export type UuidNullableFilter<$PrismaModel = never> = {
@@ -199,14 +206,14 @@ export type UuidNullableFilter<$PrismaModel = never> = {
   not?: Prisma.NestedUuidNullableFilter<$PrismaModel> | string | null
 }
 
-export type EnumDispatchStateWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.DispatchState | Prisma.EnumDispatchStateFieldRefInput<$PrismaModel>
-  in?: $Enums.DispatchState[] | Prisma.ListEnumDispatchStateFieldRefInput<$PrismaModel>
-  notIn?: $Enums.DispatchState[] | Prisma.ListEnumDispatchStateFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumDispatchStateWithAggregatesFilter<$PrismaModel> | $Enums.DispatchState
+export type EnumDispatchStageWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.DispatchStage | Prisma.EnumDispatchStageFieldRefInput<$PrismaModel>
+  in?: $Enums.DispatchStage[] | Prisma.ListEnumDispatchStageFieldRefInput<$PrismaModel>
+  notIn?: $Enums.DispatchStage[] | Prisma.ListEnumDispatchStageFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumDispatchStageWithAggregatesFilter<$PrismaModel> | $Enums.DispatchStage
   _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumDispatchStateFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumDispatchStateFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumDispatchStageFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumDispatchStageFilter<$PrismaModel>
 }
 
 export type IntWithAggregatesFilter<$PrismaModel = never> = {
@@ -223,6 +230,16 @@ export type IntWithAggregatesFilter<$PrismaModel = never> = {
   _sum?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedIntFilter<$PrismaModel>
   _max?: Prisma.NestedIntFilter<$PrismaModel>
+}
+
+export type EnumDispatchStateWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.DispatchState | Prisma.EnumDispatchStateFieldRefInput<$PrismaModel>
+  in?: $Enums.DispatchState[] | Prisma.ListEnumDispatchStateFieldRefInput<$PrismaModel>
+  notIn?: $Enums.DispatchState[] | Prisma.ListEnumDispatchStateFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumDispatchStateWithAggregatesFilter<$PrismaModel> | $Enums.DispatchState
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumDispatchStateFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumDispatchStateFilter<$PrismaModel>
 }
 
 export type UuidNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -537,6 +554,13 @@ export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
 }
 
+export type NestedEnumDispatchStageFilter<$PrismaModel = never> = {
+  equals?: $Enums.DispatchStage | Prisma.EnumDispatchStageFieldRefInput<$PrismaModel>
+  in?: $Enums.DispatchStage[] | Prisma.ListEnumDispatchStageFieldRefInput<$PrismaModel>
+  notIn?: $Enums.DispatchStage[] | Prisma.ListEnumDispatchStageFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumDispatchStageFilter<$PrismaModel> | $Enums.DispatchStage
+}
+
 export type NestedEnumDispatchStateFilter<$PrismaModel = never> = {
   equals?: $Enums.DispatchState | Prisma.EnumDispatchStateFieldRefInput<$PrismaModel>
   in?: $Enums.DispatchState[] | Prisma.ListEnumDispatchStateFieldRefInput<$PrismaModel>
@@ -555,14 +579,14 @@ export type NestedUuidNullableFilter<$PrismaModel = never> = {
   not?: Prisma.NestedUuidNullableFilter<$PrismaModel> | string | null
 }
 
-export type NestedEnumDispatchStateWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.DispatchState | Prisma.EnumDispatchStateFieldRefInput<$PrismaModel>
-  in?: $Enums.DispatchState[] | Prisma.ListEnumDispatchStateFieldRefInput<$PrismaModel>
-  notIn?: $Enums.DispatchState[] | Prisma.ListEnumDispatchStateFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumDispatchStateWithAggregatesFilter<$PrismaModel> | $Enums.DispatchState
+export type NestedEnumDispatchStageWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.DispatchStage | Prisma.EnumDispatchStageFieldRefInput<$PrismaModel>
+  in?: $Enums.DispatchStage[] | Prisma.ListEnumDispatchStageFieldRefInput<$PrismaModel>
+  notIn?: $Enums.DispatchStage[] | Prisma.ListEnumDispatchStageFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumDispatchStageWithAggregatesFilter<$PrismaModel> | $Enums.DispatchStage
   _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumDispatchStateFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumDispatchStateFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumDispatchStageFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumDispatchStageFilter<$PrismaModel>
 }
 
 export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
@@ -590,6 +614,16 @@ export type NestedFloatFilter<$PrismaModel = never> = {
   gt?: number | Prisma.FloatFieldRefInput<$PrismaModel>
   gte?: number | Prisma.FloatFieldRefInput<$PrismaModel>
   not?: Prisma.NestedFloatFilter<$PrismaModel> | number
+}
+
+export type NestedEnumDispatchStateWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.DispatchState | Prisma.EnumDispatchStateFieldRefInput<$PrismaModel>
+  in?: $Enums.DispatchState[] | Prisma.ListEnumDispatchStateFieldRefInput<$PrismaModel>
+  notIn?: $Enums.DispatchState[] | Prisma.ListEnumDispatchStateFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumDispatchStateWithAggregatesFilter<$PrismaModel> | $Enums.DispatchState
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumDispatchStateFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumDispatchStateFilter<$PrismaModel>
 }
 
 export type NestedUuidNullableWithAggregatesFilter<$PrismaModel = never> = {
