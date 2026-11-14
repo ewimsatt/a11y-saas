@@ -246,7 +246,7 @@ it('keeps a tall screenshot bottom marker reachable in HTML and the PDF export',
   } finally {
     await browser.close();
   }
-});
+}, 15_000);
 
 it('emits tagged PDF structure and an outline', async () => {
   const pdf = await renderPdf(

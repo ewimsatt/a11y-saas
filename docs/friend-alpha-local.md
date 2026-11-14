@@ -2,7 +2,7 @@
 
 This is a one-machine single-user alpha. Do not bind it to a LAN interface, expose it through a tunnel, hand its API endpoint to another person, deploy it, or use it with customer data. Authentication and tenant isolation do not exist.
 
-The scanner worker has no local browser fallback. It connects only to the internal Playwright Chromium sidecar, whose HTTP(S) traffic is forced through Smokescreen. Only Smokescreen joins the outbound Docker network. Browser and proxy ports are never published.
+The scanner worker has no local browser fallback. It connects only to the internal Playwright Chromium sidecar, whose HTTP(S) traffic is forced through Smokescreen. Only Smokescreen joins the scanner egress network. Browser and proxy ports are never published. The API and console use a separate loopback-publication network and are not a scanner egress path.
 
 ## Hand a source bundle to one friend
 
@@ -38,7 +38,7 @@ docker compose --env-file .env.alpha -f docker-compose.alpha.yml up --build
 
 `alpha:env` creates a fresh 256-bit browser-control token and unique local database password in an uncommitted file with mode 0600. It refuses to overwrite an existing file. Do not commit, print, or share `.env.alpha`; the token is part of the sidecar WebSocket endpoint.
 
-The Compose file uses the dedicated `a11y-friend-alpha` project namespace, so its `down --volumes` command targets only this alpha's containers, networks, and volumes. The API is loopback-only at `http://127.0.0.1:3001` and the production-built local console is loopback-only at `http://127.0.0.1:3010`; Compose builds and starts both. The console is built with that API origin, and the API CORS allowlist includes the console's loopback origin. The browser-sidecar and Smokescreen services have no host ports. The API reads the worker's local evidence volume read-only, so screenshots and report evidence remain available within this one alpha project.
+The Compose file uses the dedicated `a11y-friend-alpha` project namespace, so its `down --volumes` command targets only this alpha's containers, networks, and volumes. The API is loopback-only at `http://127.0.0.1:3001` and the production-built local console is loopback-only at `http://127.0.0.1:3010`; Compose builds and starts both. API and console join a separate egress-capable Docker access network because Docker Desktop/Colima needs it to publish those loopback bindings reliably. That access network is not a scanner path: worker and browser remain on their existing internal networks, and only Smokescreen joins `scanner_egress`. The API runs non-root with a read-only root filesystem, a bounded temporary filesystem, no added capabilities, no-new-privileges, and memory/PID limits. Packaged PDF rendering is delegated to a separate non-root Playwright service with sandboxed Chromium, a read-only root filesystem, bounded writable tmpfs mounts, all capabilities dropped except `SYS_CHROOT`, no host port, and a fresh private authentication token. The renderer and API share one internal `pdf_control` bridge. It prevents ordinary external routing, but Docker Compose does not make that bridge one-way: a compromised renderer could reach the API on that private bridge within this local single-user threat boundary. The renderer blocks every browser network request and fails the render rather than returning a partial report. The API has no packaged Chromium or browser-control endpoint. For local source development outside Compose, PDF rendering still uses the installed Playwright browser and therefore requires a developer browser installation; the hardened alpha runtime always uses the isolated renderer service. The console is built with that API origin, and the API CORS allowlist includes the console's loopback origin. The browser-sidecar and Smokescreen services have no host ports. The API reads the worker's local evidence volume read-only, so screenshots and report evidence remain available within this one alpha project.
 
 Stop only this alpha project when finished:
 
@@ -65,12 +65,13 @@ This is deliberately a bounded alpha recovery slice, not HITLIST 07 completion: 
 
 ```sh
 pnpm test:scanner-egress
+pnpm test:alpha-runtime
 pnpm typecheck
 pnpm test
 pnpm test:ui
 ```
 
-`test:scanner-egress` creates a uniquely named disposable Docker project and uses only its own fixtures. Set `DOCKER_HOST` per command if Colima uses a non-default socket; it never changes your Docker context.
+`test:scanner-egress` and `test:alpha-runtime` create uniquely named disposable Docker projects and use only their own fixtures. The alpha runtime gate builds the packaged image once, proves loopback reachability and hardened topology, parses and rasterizes a native PDF, checks its screenshot marker pixels, and verifies that the PDF renderer completes no canary request. Set `DOCKER_HOST` per command if Colima uses a non-default socket; neither command changes your Docker context.
 
 ## Known release blockers
 

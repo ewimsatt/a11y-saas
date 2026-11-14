@@ -1,26 +1,9 @@
-import fs from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
 import sharp from 'sharp';
-import { afterEach, describe, expect, it } from 'vitest';
-import { MAX_SCREENSHOT_INPUT_BYTES, processScreenshotFile } from '../src/lib/report/image';
-
-const dirs: string[] = [];
-
-async function tempDir(): Promise<string> {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'a11y-report-image-'));
-  dirs.push(dir);
-  return dir;
-}
-
-afterEach(async () => {
-  await Promise.all(dirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })));
-});
+import { describe, expect, it } from 'vitest';
+import { MAX_SCREENSHOT_INPUT_BYTES, processScreenshotBytes } from '../src/lib/report/image';
 
 describe('report screenshot processing', () => {
-  it('decodes and creates a bounded top-cropped JPEG without changing the original', async () => {
-    const dir = await tempDir();
-    const file = path.join(dir, 'tall.png');
+  it('decodes and creates a bounded top-cropped JPEG without mutating the captured bytes', async () => {
     const top = await sharp({ create: { width: 1200, height: 700, channels: 3, background: '#c4853e' } })
       .png()
       .toBuffer();
@@ -34,14 +17,14 @@ describe('report screenshot processing', () => {
       ])
       .png()
       .toBuffer();
-    await fs.writeFile(file, original);
+    const before = Buffer.from(original);
 
-    const result = await processScreenshotFile(file);
+    const result = await processScreenshotBytes(original);
     expect(result?.mime).toBe('image/jpeg');
     const output = await sharp(Buffer.from(result!.base64, 'base64')).metadata();
     expect(output.width).toBeLessThanOrEqual(900);
     expect(output.height).toBeLessThanOrEqual(560);
-    expect((await fs.readFile(file)).equals(original)).toBe(true);
+    expect(original.equals(before)).toBe(true);
 
     const pixel = await sharp(Buffer.from(result!.base64, 'base64')).extract({ left: 10, top: 10, width: 1, height: 1 }).raw().toBuffer();
     expect(pixel[0]).toBeGreaterThan(150);
@@ -49,31 +32,27 @@ describe('report screenshot processing', () => {
     expect(pixel[2]).toBeLessThan(100);
   });
 
+  it('accepts valid JPEG bytes and re-encodes them within bounds', async () => {
+    const input = await sharp({ create: { width: 32, height: 24, channels: 3, background: '#abcdef' } }).jpeg().toBuffer();
+    const result = await processScreenshotBytes(input);
+    expect(result?.mime).toBe('image/jpeg');
+    await expect(sharp(Buffer.from(result!.base64, 'base64')).raw().toBuffer()).resolves.toBeInstanceOf(Buffer);
+  });
+
   it('rejects a corrupt payload with plausible PNG headers', async () => {
-    const dir = await tempDir();
-    const file = path.join(dir, 'corrupt.png');
     const fake = Buffer.alloc(64);
     Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(fake);
     fake.writeUInt32BE(1200, 16);
     fake.writeUInt32BE(800, 20);
-    await fs.writeFile(file, fake);
-    await expect(processScreenshotFile(file)).resolves.toBeNull();
+    await expect(processScreenshotBytes(fake)).resolves.toBeNull();
   });
 
-  it('rejects oversized input by stat before opening it for decoding', async () => {
-    const dir = await tempDir();
-    const file = path.join(dir, 'oversized.png');
-    await fs.writeFile(file, Buffer.alloc(16));
-    await fs.truncate(file, MAX_SCREENSHOT_INPUT_BYTES + 1);
-    await expect(processScreenshotFile(file)).resolves.toBeNull();
+  it('rejects oversized captured bytes before decoding', async () => {
+    await expect(processScreenshotBytes(Buffer.alloc(MAX_SCREENSHOT_INPUT_BYTES + 1))).resolves.toBeNull();
   });
 
-  it('rejects unsupported decoded formats', async () => {
-    const dir = await tempDir();
-    const file = path.join(dir, 'image.gif');
-    await sharp({ create: { width: 20, height: 20, channels: 3, background: '#ffffff' } })
-      .gif()
-      .toFile(file);
-    await expect(processScreenshotFile(file)).resolves.toBeNull();
+  it('rejects unsupported decoded formats and multiple frames', async () => {
+    const gif = await sharp({ create: { width: 20, height: 20, channels: 3, background: '#ffffff' } }).gif().toBuffer();
+    await expect(processScreenshotBytes(gif)).resolves.toBeNull();
   });
 });

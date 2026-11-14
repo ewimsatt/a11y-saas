@@ -1,9 +1,8 @@
-import path from 'node:path';
 import { prisma } from '@a11y/db';
 import { publicFailureReason } from '@a11y/shared';
 import { EVIDENCE_DIR } from '../paths';
+import { loadEvidenceScreenshot } from './evidencePath';
 import type { Coverage } from './coverage';
-import { processScreenshotFile } from './image';
 import {
   deriveReportFinality,
   findComparablePriorScan,
@@ -71,12 +70,8 @@ export type ReportData = {
   comparisonNote: string;
 };
 
-async function loadScreenshot(pageId: string): Promise<Image | null> {
-  for (const extension of ['png', 'jpg', 'jpeg']) {
-    const image = await processScreenshotFile(path.join(EVIDENCE_DIR, 'pages', `${pageId}.${extension}`));
-    if (image) return image;
-  }
-  return null;
+async function loadScreenshot(relative: string | null | undefined): Promise<Image | null> {
+  return loadEvidenceScreenshot(EVIDENCE_DIR, relative);
 }
 
 export async function buildReportData(
@@ -114,6 +109,12 @@ export async function buildReportData(
     };
   });
 
+  const screenshotPathByPage = new Map<string, string>();
+  for (const finding of findings) {
+    if (finding.evidence?.screenshot && !screenshotPathByPage.has(finding.pageId)) {
+      screenshotPathByPage.set(finding.pageId, finding.evidence.screenshot);
+    }
+  }
   const findingCountByPage = new Map<string, number>();
   for (const finding of findings) {
     findingCountByPage.set(finding.pageId, (findingCountByPage.get(finding.pageId) ?? 0) + 1);
@@ -135,7 +136,7 @@ export async function buildReportData(
   const screenshotByPage = new Map<string, Image>();
   for (const pageId of screenshotCandidates) {
     if (screenshotByPage.size >= MAX_SCREENSHOT_PAGES) break;
-    const screenshot = await loadScreenshot(pageId);
+    const screenshot = await loadScreenshot(screenshotPathByPage.get(pageId));
     if (screenshot) screenshotByPage.set(pageId, screenshot);
   }
   const pages = pageFacts.map((page) => ({
