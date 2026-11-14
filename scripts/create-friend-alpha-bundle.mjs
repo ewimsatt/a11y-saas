@@ -13,7 +13,6 @@ import {
   rm,
   symlink
 } from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 
 const forbiddenPath = (entry) => entry.split('/').some((segment) =>
@@ -75,7 +74,7 @@ if (!entries.includes('docs/friend-alpha-local.md') || !entries.includes('script
   fail('Refuse to bundle without the friend-alpha guide and local environment generator');
 }
 
-const staging = await mkdtemp(path.join(os.tmpdir(), 'a11y-friend-alpha-source-'));
+const staging = await mkdtemp(path.join(canonicalOutputParent, '.a11y-friend-alpha-source-'));
 try {
   for (const entry of entries) {
     const source = path.join(repositoryRoot, entry);
