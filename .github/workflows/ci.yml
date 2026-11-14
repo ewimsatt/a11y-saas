@@ -7,7 +7,9 @@ on:
 
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    # Keep sandboxed Playwright compatible with the runner's user-namespace policy.
+    # Ubuntu 24.04+ restricts unprofiled Chromium via AppArmor; never use --no-sandbox.
+    runs-on: ubuntu-22.04
     services:
       postgres:
         image: postgres:16-alpine
