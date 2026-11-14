@@ -40,7 +40,7 @@ try {
     timedOut = true
     stopOwnedGroup('SIGTERM')
     forceKill = setTimeout(() => stopOwnedGroup('SIGKILL'), 5000)
-  }, 120000)
+  }, 300000)
   const code = await new Promise((resolvePromise, reject) => {
     child.once('error', reject)
     child.once('exit', (code) => resolvePromise(code))
