@@ -1,4 +1,3 @@
-import fs from 'node:fs/promises';
 import sharp from 'sharp';
 
 export const MAX_SCREENSHOT_INPUT_BYTES = 20_000_000;
@@ -11,16 +10,11 @@ type ProcessedScreenshot = {
   mime: 'image/jpeg';
 };
 
-/**
- * Decode and bound a stored PNG/JPEG before embedding it in a report.
- * The original evidence file is never modified. Tall pages are cropped from the top.
- */
-export async function processScreenshotFile(filePath: string): Promise<ProcessedScreenshot | null> {
+/** Decode and bound already-read PNG/JPEG bytes before embedding them in a report. */
+export async function processScreenshotBytes(input: Buffer): Promise<ProcessedScreenshot | null> {
   try {
-    const stat = await fs.stat(filePath);
-    if (!stat.isFile() || stat.size <= 0 || stat.size > MAX_SCREENSHOT_INPUT_BYTES) return null;
-
-    const decoder = sharp(filePath, {
+    if (input.byteLength <= 0 || input.byteLength > MAX_SCREENSHOT_INPUT_BYTES) return null;
+    const decoder = sharp(input, {
       failOn: 'error',
       limitInputPixels: MAX_SCREENSHOT_INPUT_PIXELS,
       sequentialRead: true

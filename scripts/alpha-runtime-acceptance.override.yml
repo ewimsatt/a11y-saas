@@ -1,0 +1,10 @@
+services:
+  api:
+    volumes:
+      - ./scripts/alpha-runtime-pdf-canary.ts:/acceptance/alpha-runtime-pdf-canary.ts:ro
+  web:
+    volumes:
+      - ./scripts/pdf-request-canary.mjs:/acceptance/pdf-request-canary.mjs:ro
+  worker:
+    volumes:
+      - ./scripts/alpha-runtime-seed.ts:/acceptance/alpha-runtime-seed.ts:ro

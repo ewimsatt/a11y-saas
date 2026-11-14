@@ -22,6 +22,7 @@ services:
     networks: [app_internal]
 
   migrate:
+    image: ${ALPHA_APP_IMAGE:-a11y-friend-alpha-app}
     build:
       context: .
       dockerfile: infra/alpha/Dockerfile
@@ -34,6 +35,7 @@ services:
     networks: [app_internal]
 
   api:
+    image: ${ALPHA_APP_IMAGE:-a11y-friend-alpha-app}
     build:
       context: .
       dockerfile: infra/alpha/Dockerfile
@@ -45,24 +47,73 @@ services:
       # publication remains loopback at 127.0.0.1 below.
       HOST: 0.0.0.0
       CONTAINER_BIND_ALL_INTERFACES: "1"
-      CORS_ORIGIN: http://127.0.0.1:3010,http://localhost:3010
+      CORS_ORIGIN: http://127.0.0.1:${ALPHA_WEB_HOST_PORT:-3010},http://localhost:${ALPHA_WEB_HOST_PORT:-3010}
       EVIDENCE_DIR: /app/evidence
-    depends_on: [postgres, redis]
-    ports: ["127.0.0.1:3001:3001"]
+      HOME: /tmp
+      XDG_CACHE_HOME: /tmp/cache
+      XDG_CONFIG_HOME: /tmp/config
+      PDF_RENDERER_URL: http://pdf-renderer:3002/render
+      PDF_RENDERER_TOKEN: ${PDF_RENDERER_TOKEN:?generate alpha env first}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      pdf-renderer:
+        condition: service_healthy
+    ports: ["127.0.0.1:${ALPHA_API_HOST_PORT:-3001}:3001"]
     volumes: [alpha-evidence:/app/evidence:ro]
-    networks: [app_internal]
+    read_only: true
+    tmpfs: ["/tmp:rw,nosuid,noexec,size=256m"]
+    security_opt: ["no-new-privileges:true", "seccomp:./infra/playwright/seccomp_profile.json"]
+    cap_drop: ["ALL"]
+    pids_limit: 256
+    mem_limit: 768m
+    cpus: 1.0
+    # Docker Desktop/Colima can decline host publication for a container attached
+    # only to an internal network. This network permits loopback publication while
+    # leaving the worker, browser and scanner egress networks unchanged.
+    networks: [app_internal, local_access, pdf_control]
+    user: node
+
+  pdf-renderer:
+    build: { context: ./infra/pdf-renderer }
+    environment:
+      PDF_RENDERER_TOKEN: ${PDF_RENDERER_TOKEN:?generate alpha env first}
+      PDF_RENDER_MAX_HTML_BYTES: "8388608"
+      PDF_RENDER_MAX_PDF_BYTES: "25000000"
+      PDF_RENDER_TIMEOUT_MS: "15000"
+    expose: ["3002"]
+    read_only: true
+    tmpfs: ["/tmp:rw,nosuid,nodev,size=256m", "/home/pwuser:rw,nosuid,nodev,size=64m"]
+    security_opt: ["no-new-privileges:true", "seccomp:./infra/playwright/seccomp_profile.json"]
+    cap_drop: ["ALL"]
+    cap_add: ["SYS_CHROOT"]
+    pids_limit: 512
+    mem_limit: 1g
+    cpus: 2.0
+    shm_size: 256m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    networks: [pdf_control]
+    user: pwuser
 
   web:
+    image: ${ALPHA_APP_IMAGE:-a11y-friend-alpha-app}
     build:
       context: .
       dockerfile: infra/alpha/Dockerfile
     command: ["pnpm", "--filter", "@a11y/web", "start"]
     environment:
-      VITE_API_URL: http://127.0.0.1:3001
-    ports: ["127.0.0.1:3010:3010"]
-    networks: [app_internal]
+      VITE_API_URL: http://127.0.0.1:${ALPHA_API_HOST_PORT:-3001}
+    ports: ["127.0.0.1:${ALPHA_WEB_HOST_PORT:-3010}:3010"]
+    networks: [app_internal, local_access]
 
   worker:
+    image: ${ALPHA_APP_IMAGE:-a11y-friend-alpha-app}
     build:
       context: .
       dockerfile: infra/alpha/Dockerfile
@@ -104,8 +155,14 @@ services:
 
 networks:
   app_internal: { internal: true }
+  # API and web join this egress-capable access network so Docker can publish
+  # their already loopback-bound ports without granting scanner-side reachability.
+  local_access: {}
   browser_control: { internal: true }
   scanner_egress: {}
+  # Private API-to-renderer bridge. This blocks ordinary external routing but is
+  # not directional access control between the two attached containers.
+  pdf_control: { internal: true }
 
 volumes:
   alpha-pgdata: {}

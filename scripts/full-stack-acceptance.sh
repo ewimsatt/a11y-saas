@@ -130,8 +130,9 @@ VIOLATION=$(poll "$VIOLATION_SCAN")
 PARTIAL=$(poll "$PARTIAL_SCAN")
 ISSUES=$(api GET "/scans/$VIOLATION_SCAN/issues")
 REPORT=$(api GET "/scans/$PARTIAL_SCAN/report?format=html")
-node - "$CLEAN" "$VIOLATION" "$PARTIAL" "$ISSUES" "$REPORT" <<'NODE'
-const [cleanRaw, violationRaw, partialRaw, issuesRaw, report] = process.argv.slice(2);
+VIOLATION_REPORT=$(api GET "/scans/$VIOLATION_SCAN/report?format=html")
+node - "$CLEAN" "$VIOLATION" "$PARTIAL" "$ISSUES" "$REPORT" "$VIOLATION_REPORT" <<'NODE'
+const [cleanRaw, violationRaw, partialRaw, issuesRaw, report, violationReport] = process.argv.slice(2);
 const clean = JSON.parse(cleanRaw);
 const violation = JSON.parse(violationRaw);
 const partial = JSON.parse(partialRaw);
@@ -144,6 +145,7 @@ if (!selectors.includes('.first-bad') || !selectors.includes('.second-bad')) fai
 if (partial.status !== 'completed' || partial.coverage !== 'PARTIAL') fail(`partial scan was not labeled partial: ${JSON.stringify(partial)}`);
 if (!partial.pages.some((page) => page.outcome === 'FAILED' && page.status === 503)) fail(`HTTP failure was not retained: ${JSON.stringify(partial.pages)}`);
 if (!report.includes('PARTIAL coverage') || !report.includes('No final assessment or comparison is issued')) fail('partial report issued an unqualified assessment');
+if (!violationReport.includes('data:image/jpeg;base64,')) fail('report omitted a readable immutable evidence screenshot');
 console.log(JSON.stringify({ clean: { status: clean.status, coverage: clean.coverage, findings: clean._count.findings }, violation: { findings: violation._count.findings, selectors }, partial: { status: partial.status, coverage: partial.coverage, pages: partial.pages.map(({ outcome, status }) => ({ outcome, status })) } }, null, 2));
 NODE
 

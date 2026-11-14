@@ -62,6 +62,10 @@ jobs:
         env:
           DOCKER_HOST: unix:///var/run/docker.sock
         run: pnpm test:acceptance
+      - name: Hardened packaged local-alpha acceptance
+        env:
+          DOCKER_HOST: unix:///var/run/docker.sock
+        run: pnpm test:alpha-runtime
       - name: Scanner egress boundary acceptance
         env:
           DOCKER_HOST: unix:///var/run/docker.sock
