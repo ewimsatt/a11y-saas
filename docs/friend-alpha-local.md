@@ -57,9 +57,9 @@ Failures to connect to the browser sidecar, proxy, or a target become failed or 
 
 `POST /scans/:projectId/run` accepts an optional `Idempotency-Key` header. Replaying the same key with the same project and exact requested URL payload returns the original durable scan; reusing it for different input returns `409`. The scan, requested pages, and PostgreSQL dispatch intent are committed in one transaction before the API returns `202`.
 
-The API makes a best-effort Redis enqueue after that commit. A temporary Redis error still returns the accepted `queued` scan and leaves its intent `PENDING`; the failed in-process queue instance is retired so a later due attempt can create a fresh bounded Redis connection. The local API dispatcher retries due intents with deterministic `<scanId>-crawl` job IDs and retained BullMQ jobs. Redis commands use a short connection/request bound, so an unavailable local Redis does not hold an HTTP request open indefinitely.
+PostgreSQL is the durable source of truth for CRAWL, ANALYZE, DIFF, and EVIDENCE dispatch. The API makes a best-effort Redis enqueue after intake, while the worker reconciles the exact deterministic job for each live stage. Database-time dispatch and run leases use fenced tokens, so a stale dispatcher or duplicate delivery cannot finalize a successor. A temporarily unavailable Redis leaves the intent queued for recovery rather than returning a fake clean result. Reconciliation can recreate a missing or terminal transport record, preserves the database-owned run-attempt budget, and terminalizes an exhausted live stage as a truthful failed scan. The stage retry delays are 1 second and then 5 seconds; processing remains at-least-once.
 
-This is deliberately a bounded alpha recovery slice, not HITLIST 07 completion: recovery runs only while the local API process is running and again when it starts. A continuously unavailable Redis leaves the durable intent queued for later recovery rather than claiming the scan failed, and this slice does not yet reconcile later worker stages, terminalize exhausted dispatch attempts, or provide an independent scheduler. Processing remains at-least-once.
+Recovery runs while the local API or worker process is running and when either starts. A temporary Redis outage leaves durable work queued for a later local recovery pass. If dispatch exhausts its five database-owned enqueue attempts, the scan becomes truthfully failed instead of pretending it completed. This alpha has no independent scheduler, external queue service, or high-availability guarantee.
 
 ## Evidence commands
 
@@ -75,4 +75,4 @@ pnpm test:ui
 
 ## Known release blockers
 
-This is not approved for public, shared, hosted, LAN, or multi-tenant use. Queue recovery, durable external evidence storage, auth/authorization, and abuse limits remain separate release work. Do not claim that this alpha is a hostile-site browser sandbox.
+This is not approved for public, shared, hosted, LAN, or multi-tenant use. Durable external evidence storage, auth/authorization, abuse limits, and independent high-availability operations remain separate release work. Do not claim that this alpha is a hostile-site browser sandbox.
