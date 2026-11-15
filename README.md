@@ -82,7 +82,7 @@ A recorded `COMPLETE` value alone is not enough for a final assessment: lifecycl
 - **Controlled browser egress.** The sidecar's HTTP(S) traffic passes through Smokescreen; browser and proxy ports are not published. Input validation rejects common unsafe targets, and connection-time controls cover DNS answers, redirects, and subresources. This is a local-alpha boundary, not proof of a hostile-site sandbox or safe public scanning service.
 - **Supported targets.** Public HTTP(S) URLs on ports 80 or 443, without embedded credentials. Literal loopback, private/link-local targets, and local/internal hostnames are rejected by the public API and rechecked by the worker.
 - **Local evidence storage.** The alpha worker writes screenshots to a Docker volume mounted read-only by the API. S3/MinIO uploads, external retention, and production access controls are not connected to the evidence pipeline.
-- **Bounded queue recovery.** PostgreSQL retains dispatch intent before acceptance. The API retries pending intake while running and after restart. Later worker-stage reconciliation, exhausted-attempt handling, and an independent recovery scheduler remain unfinished; processing is at-least-once.
+- **Bounded queue recovery.** PostgreSQL retains dispatch intent before acceptance. The API and worker reconcile the exact deterministic Redis job for every CRAWL, ANALYZE, DIFF, and EVIDENCE stage while they run and when they restart. Database-time, token-fenced claims prevent a stale dispatcher or duplicate delivery from finalizing a successor; missing or terminal Redis records are recreated within the remaining database-owned run budget. An exhausted live stage becomes a truthful failed scan. Processing remains at-least-once, and there is no independent scheduler or high-availability control plane.
 
 ## Run the local alpha
 
@@ -199,7 +199,7 @@ pnpm test:ui
 
 On Linux, use `pnpm exec playwright install --with-deps chromium` when system dependencies are needed. Docker-backed checks require a reachable daemon; set `DOCKER_HOST` for the command if needed rather than changing the global Docker context.
 
-[CI](.github/workflows/ci.yml) runs typechecking, unit tests, the web build, full-stack owned-fixture acceptance, scanner-egress acceptance, and rendered console regressions on `main` pushes and pull requests. Coverage includes finding identity, evidence, incomplete scans, comparison finality/scope, waivers, scan dispatch, report rendering, and local boundaries. Controlled fixtures are not evidence of production readiness or real-world site compliance.
+[CI](.github/workflows/ci.yml) runs typechecking, real PostgreSQL/Redis service tests, the web build, full-stack owned-fixture acceptance, hardened packaged local-alpha acceptance, scanner-egress acceptance, and rendered console regressions on `main` pushes and pull requests. Coverage includes finding identity, evidence, incomplete scans, comparison finality/scope, waivers, scan dispatch and recovery, report rendering, and local boundaries. Controlled fixtures are not evidence of production readiness or real-world site compliance.
 
 ### Report fixtures
 
@@ -215,11 +215,11 @@ Generate explicitly synthetic zero-finding, incomplete, long-field, high-occurre
 - Comprehensive WCAG coverage, manual audit automation, automatic fixes, or compliance certification.
 - Site discovery, sitemap crawling, and supported authenticated-page workflows.
 - Durable external evidence storage, retention policy, and production access controls.
-- Complete queue-stage recovery, independent recovery scheduling, and operational monitoring.
+- Independent recovery scheduling, high-availability operations, and production monitoring.
 - Full long-term issue tracking and cross-scan waiver carry-forward.
 - Complete release/security hardening and deployment-specific acceptance.
 
-The local sidecar and egress controls are implemented, but broader sandbox assurance and complete real-HTTPS CONNECT fixture coverage remain release work. See [the alpha guide](docs/friend-alpha-local.md) for those boundaries. Older bootstrap/planning documents under `docs/` may describe obsolete feature status; use this README, the alpha guide, and executable source for the current workflow.
+The local sidecar and egress controls are implemented and exercised with an owned HTTPS CONNECT fixture. Broader hostile-site sandbox assurance remains release work. See [the alpha guide](docs/friend-alpha-local.md) for those boundaries. Older bootstrap/planning documents under `docs/` may describe obsolete feature status; use this README, the alpha guide, and executable source for the current workflow.
 
 ## Contributing and license
 
