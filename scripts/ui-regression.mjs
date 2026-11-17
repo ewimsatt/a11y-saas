@@ -246,6 +246,19 @@ try {
     await page.waitForFunction(() => document.querySelector('select[aria-label="Scan"] option[value="sa"]'))
     assert.equal(await page.getByText('FIRST OWNED FIXTURE ISSUE', { exact: true }).count(), 0, 'Late issues cannot populate after its scan is no longer selected')
   })
+  await scenario('selected-page-scan-submits-trimmed-unique-urls', async (page, state) => {
+    await page.getByLabel('Pages to scan (optional)', { exact: true }).fill('  https://a.example/about  \nhttps://a.example/contact\nhttps://a.example/about\n\n')
+    await page.getByRole('button', { name: 'Run scan', exact: true }).click()
+    await state.waitForCall('POST /scans/pa/run')
+    const request = state.calls.find((call) => call.key === 'POST /scans/pa/run')
+    assert.deepEqual(JSON.parse(request.body), { urls: ['https://a.example/about', 'https://a.example/contact'] }, 'Selected pages must preserve trimmed URL identity and remove exact duplicates before submission')
+  })
+  await scenario('selected-page-scan-refuses-more-than-twenty-urls', async (page, state) => {
+    await page.getByLabel('Pages to scan (optional)', { exact: true }).fill(Array.from({ length: 21 }, (_, index) => `https://a.example/page-${index + 1}`).join('\n'))
+    await page.getByRole('button', { name: 'Run scan', exact: true }).click()
+    await page.getByText('Enter up to 20 distinct URLs, one per line', { exact: true }).waitFor()
+    assert.equal(state.calls.filter((call) => call.key === 'POST /scans/pa/run').length, 0, 'The console must not submit more than the API URL limit')
+  })
   await scenario('late-run-submission-cannot-select-another-project', async (page, state) => {
     state.hold('POST /scans/pa/run')
     await page.getByRole('button', { name: 'Run scan', exact: true }).click()

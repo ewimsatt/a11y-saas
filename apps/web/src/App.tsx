@@ -37,6 +37,7 @@ export default function App() {
   const [wcagFilter, setWcagFilter] = useState('')
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectUrl, setNewProjectUrl] = useState('')
+  const [requestedUrls, setRequestedUrls] = useState('')
   const [waiveReason, setWaiveReason] = useState('')
   const [waiveExpiresAt, setWaiveExpiresAt] = useState('')
   const [waiveAttempted, setWaiveAttempted] = useState(false)
@@ -85,6 +86,7 @@ export default function App() {
     setIssuesResolved(false)
     setIssuesLoading(false)
     setRunPending(false)
+    setRequestedUrls('')
     setWaivePending(false)
     clearEvidence()
   }
@@ -223,10 +225,12 @@ export default function App() {
   async function runScan() {
     const pid = projectIdRef.current
     if (!pid || runPending) return
+    const urls = [...new Set(requestedUrls.split(/\r?\n/).map((value) => value.trim()).filter(Boolean))]
+    if (urls.length > 20) { setMsg('Enter up to 20 distinct URLs, one per line'); return }
     const token = ++runToken.current
     setRunPending(true)
     try {
-      const res = await fetch(`${API}/scans/${pid}/run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
+      const res = await fetch(`${API}/scans/${pid}/run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(urls.length ? { urls } : {}) })
       const data = await res.json()
       if (runToken.current !== token || projectIdRef.current !== pid) return
       if (!res.ok) { setMsg(`Run scan failed: ${data.error || res.statusText}`); return }
@@ -372,6 +376,7 @@ export default function App() {
       <div className="workspace-grid">
         <label>Project<select aria-label="Project" value={projectId} onChange={(event) => changeProject(event.target.value)}><option value="">Select project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
         <label>Scan<select aria-label="Scan" value={visibleScan ? scanId : ''} onChange={(event) => changeScan(event.target.value)} disabled={scansLoading}><option value="">{scansLoading ? 'Loading scans…' : 'Select scan'}</option>{scans.map((scan) => <option key={scan.id} value={scan.id}>{scanLabel(scan)}</option>)}</select></label>
+        <label className="scan-targets">Pages to scan (optional)<textarea aria-label="Pages to scan (optional)" value={requestedUrls} onChange={(event) => setRequestedUrls(event.target.value)} placeholder="One authorized HTTP(S) URL per line. Leave blank to scan the project URL." /><span className="helper">Up to 20 distinct URLs. The scanner validates every submitted URL.</span></label>
         <div className="primary-action"><button className="primary" onClick={runScan} disabled={!projectId || runPending}>{runPending ? 'Queueing scan…' : 'Run scan'}</button><button className="secondary" onClick={() => void loadIssues()} disabled={!visibleScan || issuesLoading}>{issuesLoading ? 'Loading findings…' : 'Load findings'}</button></div>
       </div>
       <div className="workspace-support">
