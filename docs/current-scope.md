@@ -1,107 +1,58 @@
-# Current Scope — What Works vs. Not Yet
+# Current scope: local friend alpha
 
-> Updated: 2026-02-21 (after Phase 2 / BullMQ commit)
+> Updated: 2026-11-18. This page describes the shipped local single-user alpha. For setup and safety limits, start with [the friend-alpha guide](friend-alpha-local.md).
 
----
+## What works now
 
-## ✅ Works Now
+This is a one-machine, local single-user accessibility-audit workflow. Its supported journey is:
 
-### Infra
-- Docker Compose: Postgres 16, Redis 7, MinIO (MinIO running but not wired to evidence yet)
-- Prisma schema: full DB models (Project → Scan → Page → Rule → Finding → Evidence → Waiver)
-- Migrations via `prisma migrate dev`
+1. Start the packaged local stack with synthetic credentials.
+2. Open the loopback console at `http://127.0.0.1:3010`.
+3. Create a project for an owned or authorized public HTTP(S) URL.
+4. Scan the base URL or paste up to 20 explicit URLs, one per line.
+5. Follow truthful queued/running/terminal status and page coverage.
+6. Inspect findings, node-specific DOM/screenshot evidence, remediation details, comparisons, waivers, and exports.
 
-### Scanner (`@a11y/scanner`)
-- `crawlPage(url)` — Playwright screenshot + page title
-- `analyzePage(url)` — Playwright + axe-core WCAG 2.0 A/AA violations
-- `stableFingerprint({ruleId, pageUrl, selector, message})` — SHA-256 dedup key
+### Local runtime
 
-### Worker (`@a11y/worker`)
-Full BullMQ pipeline, all 4 queues implemented:
-- **crawl** — screenshots each page, saves PNG to `evidence/pages/<pageId>.png`
-- **analyze** — runs axe per page, upserts Rule + Finding + Evidence rows
-- **diff** — compares to previous completed scan, marks findings FIXED / REGRESSED
-- **evidence** — marks scan `completed` (screenshot already done in crawl stage)
+- The Compose alpha starts PostgreSQL, Redis, the API, worker, remote Playwright browser, egress proxy, PDF renderer, and production-built web console.
+- The API and console bind only to loopback. Browser/proxy/renderer control ports are not published.
+- `pnpm alpha:env .env.alpha` creates synthetic local credentials and an authenticated browser-control token in a mode-0600 file. It refuses to overwrite one.
+- `pnpm alpha:bundle ../a11y-saas-friend-alpha.tgz` creates a source-only bundle that excludes `.env*`, `.git`, `node_modules`, evidence, generated output, and caches.
 
-### API (`@a11y/api`) — Fastify on :3001
-| Method | Path | Notes |
-|--------|------|-------|
-| `GET` | `/` | List all projects |
-| `POST` | `/` | Create project `{name, baseUrl}` → 201 |
-| `POST` | `/scans/:projectId/run` | Create scan + enqueue to BullMQ → 202 |
-| `GET` | `/scans/:id/issues` | List findings (excludes WAIVED), includes rule + evidence |
-| `GET` | `/evidence/pages/:pageId.png` | Static screenshot serving |
+### Scan and evidence truthfulness
 
-### Evidence
-- Screenshots written to `evidence/pages/<pageId>.png` on local disk
-- Served statically at `/evidence/pages/<pageId>.png`
-- Evidence rows created in DB with screenshot path
+- The API persists the scan, requested pages, and initial dispatch intent before returning `202`.
+- PostgreSQL-authoritative, token-fenced CRAWL, ANALYZE, DIFF, and EVIDENCE recovery reconciles the exact Redis job. A stale dispatcher or duplicate delivery cannot finalize its successor.
+- A clean complete scan has zero findings. Failed and partial scans retain page outcomes and coverage, and are not presented as a clean grade or false fixed result.
+- Every supported axe node becomes a distinct finding with matching selector, DOM, page context, and evidence. The worker validates readable image pixels before completion.
+- Scan observations and evidence remain immutable. Derived fixed/regressed comparisons appear only for complete-coverage scans with an eligible prior scan of the same requested URL set; historical evidence is read-only.
+- Console users can filter findings, inspect rule/help links and WCAG criterion references, export reports, and create/reverse expiring local waivers.
 
----
+### Scanner boundary
 
-## ⚠️ Stubs (code exists, logic missing)
+The worker uses only the internal Playwright sidecar, whose HTTP(S) requests pass through Smokescreen. The local regression topology proves an allowed owned HTTPS fixture through CONNECT/443 and rejects private/loopback/link-local targets, redirects, subresources, and a fresh DNS rebind to private space. This is an egress boundary for the documented local alpha, not a general hostile-site browser sandbox.
 
-| Endpoint | Status |
-|----------|--------|
-| `GET /:id/evidence` | Returns `{evidence: null}` — not yet wired to DB |
-| `POST /:id/waive` | Returns 200 OK but does **not** write Waiver to DB or set status=WAIVED |
+## Safe setup
 
----
+Use the current local-alpha commands, not legacy development snippets:
 
-## ❌ Not Yet Built
+```sh
+pnpm install --frozen-lockfile
+pnpm alpha:env .env.alpha
+docker compose --env-file .env.alpha -f docker-compose.alpha.yml up -d postgres redis
+docker compose --env-file .env.alpha -f docker-compose.alpha.yml run --rm migrate
+docker compose --env-file .env.alpha -f docker-compose.alpha.yml up --build
+```
 
-### Web UI (`@a11y/web`)
-- Empty shell — `pnpm dev` does nothing useful
-- No project list, no scan detail, no issue view
+Then open `http://127.0.0.1:3010`. Run `docker compose --env-file .env.alpha -f docker-compose.alpha.yml down --volumes` and `rm .env.alpha` only when the local test is finished. See [friend-alpha-local.md](friend-alpha-local.md) before sharing a source bundle or changing the Docker context.
 
-### No `dev` scripts
-- All three apps (`api`, `worker`, `web`) have no `scripts.dev` in package.json
-- Must add manually or use `npx tsx src/index.ts` directly (see `docs/first-scan-tonight.md`)
+## Verification already in CI
 
-### MinIO / S3 evidence
-- MinIO runs in Docker but evidence processor doesn't upload to it
-- Screenshots go to local `evidence/` folder (fine for dev, not production)
+GitHub Actions runs typecheck, real PostgreSQL/Redis service tests, production web build, full-stack owned-fixture acceptance, packaged local-alpha acceptance, scanner-egress acceptance, and rendered-console regressions. The contributor commands are documented in the [README](../README.md); Docker-backed checks require a healthy Docker runtime.
 
-### Auth
-- No API keys, no JWT, no auth middleware anywhere
+## Deliberately not shipped
 
-### Multi-page crawl
-- Scan only scans the `baseUrl` as a single page (unless you pass `urls` array in the scan request)
-- No sitemap crawling or link-following implemented
+This alpha is **not approved for public, shared, hosted, LAN, or multi-tenant use**. It has no authentication, authorization, tenant isolation, public hosting approval, customer-data workflow, durable external evidence storage, retention policy, independent scheduler, high availability, production monitoring, automatic site discovery, authenticated-page support, comprehensive WCAG coverage, automatic remediation, or compliance certification.
 
-### Waiver DB persistence
-- Route accepts the request but `Waiver` table is never written to
-
-### Retry / dead-letter
-- BullMQ workers have no retry config — failed jobs vanish
-
-### Web UI / Dashboard
-- No bull-board or BullMQ dashboard wired
-
-### CI
-- No GitHub Actions workflow
-
----
-
-## Sprint Board Snapshot
-
-| ID | Task | Status |
-|----|------|--------|
-| a11y-01 | Playwright + axe scanner execution | in-progress |
-| a11y-02 | Persist findings/evidence via Prisma | in-progress |
-| a11y-03 | Queue pipeline (BullMQ) | backlog (code exists, needs test) |
-| a11y-04 | Issues API contracts operational | backlog |
-| a11y-05 | Mission Control visibility | done |
-| a11y-06 | Kite QA gate | review |
-
----
-
-## The Happy Path Tonight
-
-A successful first scan end-to-end proves:
-1. Docker infra up ✓
-2. Prisma schema migrated ✓  
-3. API accepts project/scan creation ✓
-4. BullMQ workers run the full crawl → analyze → diff → evidence pipeline ✓
-5. `GET /scans/:id/issues` returns real axe findings with severity + WCAG rule IDs ✓
-6. Evidence PNGs on disk and served via HTTP ✓
+Do not weaken scanner URL policy, expose the stack through a tunnel, bind it to a LAN interface, or treat a zero-finding result as legal/compliance assurance. The source and [friend-alpha guide](friend-alpha-local.md) are the current operational reference; historical planning documents are not.
