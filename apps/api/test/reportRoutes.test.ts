@@ -80,7 +80,7 @@ function reportData(): ReportData {
   }));
   return {
     project: { name: 'Acme / <script>', baseUrl: 'https://example.test' },
-    scan: { id: 'scan-route', status: 'completed', coverage: 'COMPLETE', startedAt: null, completedAt: null, isFinal: true },
+    scan: { id: 'scan-route', status: 'completed', coverage: 'COMPLETE', discoveryEnabled: true, discoveryState: 'FROZEN', discoveryTruncated: false, startedAt: null, completedAt: null, isFinal: true },
     generatedAt: new Date('2026-10-21T00:00:00Z'),
     coverage: { requestedPages: 2, analyzedPages: 2, failedPages: 0, pendingPages: 0, label: 'Complete requested-page coverage' },
     totals: { findings: 2, actionableFindings: 2, uniqueRules: 2, affectedPages: 2, bySeverity: { CRITICAL: 0, SERIOUS: 2, MODERATE: 0, MINOR: 0 }, byStatus: { OPEN: 2, FIXED: 0, REGRESSED: 0, WAIVED: 0 } },

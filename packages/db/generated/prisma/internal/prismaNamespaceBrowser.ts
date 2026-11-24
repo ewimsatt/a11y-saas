@@ -93,6 +93,9 @@ export const ScanScalarFieldEnum = {
   coverage: 'coverage',
   requestKey: 'requestKey',
   requestDigest: 'requestDigest',
+  discoveryEnabled: 'discoveryEnabled',
+  discoveryState: 'discoveryState',
+  discoveryTruncated: 'discoveryTruncated',
   startedAt: 'startedAt',
   completedAt: 'completedAt',
   updatedAt: 'updatedAt'
@@ -129,6 +132,7 @@ export const PageScalarFieldEnum = {
   id: 'id',
   scanId: 'scanId',
   url: 'url',
+  urlIdentity: 'urlIdentity',
   title: 'title',
   status: 'status',
   outcome: 'outcome',

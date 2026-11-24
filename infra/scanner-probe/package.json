@@ -1,0 +1,11 @@
+{
+  "name": "scanner-egress-probe",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@axe-core/playwright": "4.11.1",
+    "playwright": "1.58.2",
+    "tsx": "4.21.0"
+  }
+}

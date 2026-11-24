@@ -1,0 +1,11 @@
+# Test-only root-context variant. It is used solely by the scanner-boundary
+# topology so the shipped local-alpha browser image stays fixture-free.
+FROM mcr.microsoft.com/playwright:v1.58.2-noble@sha256:6446946a1d9fd62d9ae501312a2d76a43ee688542b21622056a372959b65d63d
+USER root
+WORKDIR /app
+COPY infra/playwright/package.json infra/playwright/package-lock.json /app/
+RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --ignore-scripts --omit=dev --no-audit --no-fund
+COPY --chown=pwuser:pwuser infra/playwright/server.mjs /app/server.mjs
+COPY --chown=pwuser:pwuser test/network-fixtures/browser-probe.mjs /app/browser-probe.mjs
+USER pwuser
+ENTRYPOINT ["node", "/app/server.mjs"]

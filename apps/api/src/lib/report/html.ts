@@ -97,10 +97,18 @@ function appendices(data: ReportData): string {
 }
 
 export function renderReportHtml(data: ReportData): string {
-  const coverageText = `${data.coverage.analyzedPages} analyzed / ${data.coverage.requestedPages} requested`;
+  const scopePageTerm = data.scan.discoveryEnabled ? 'selected' : 'requested';
+  const scopeSetTerm = data.scan.discoveryEnabled ? 'same frozen selected URL set' : 'same requested URL set';
+  const coverageText = `${data.coverage.analyzedPages} analyzed / ${data.coverage.requestedPages} ${scopePageTerm}`;
+  const scopeKind = data.scan.discoveryEnabled ? 'default discovered' : 'explicit selected';
+  const scopeText = data.scan.discoveryState !== 'FROZEN'
+    ? `${scopeKind[0]!.toUpperCase()}${scopeKind.slice(1)} scope is still pending and may not yet represent the final selected pages.`
+    : data.scan.discoveryTruncated
+      ? `Frozen ${scopeKind} scope is cap-truncated: eligible same-origin pages beyond the 20-page cap were not scanned.`
+      : `Frozen ${scopeKind} scope has no cap truncation.`;
   const finalText = data.scan.isFinal
-    ? 'Complete means every requested page was analyzed. It does not mean whole-site coverage or accessibility conformance.'
-    : `${data.scan.coverage} coverage or ${data.scan.status} status is provisional. No final assessment or comparison is issued.`;
+    ? `Complete means every ${scopePageTerm} page was analyzed. It does not mean whole-site coverage or accessibility conformance. ${scopeText}`
+    : `${data.scan.coverage} coverage or ${data.scan.status} status is provisional. No final assessment or comparison is issued. ${scopeText}`;
   const priority = data.actionableGroups[0] ?? null;
   const representatives = selectRepresentativeFindings(data.findings, 2);
   const contrast = groupContrastPatterns(data.findings);
@@ -135,7 +143,7 @@ export function renderReportHtml(data: ReportData): string {
     )} / ${esc(data.scan.coverage)}</div><div><b>Scan completed</b>${esc(fmt(data.scan.completedAt))}</div><div><b>Report generated</b>${esc(
       fmt(data.generatedAt)
     )}</div></div></header>
-    <section class="section"><h2>Executive overview</h2><p class="notice">${esc(finalText)}</p><div class="kpis"><div class="kpi"><b>${data.coverage.requestedPages}</b><span>Requested</span></div><div class="kpi"><b>${data.coverage.analyzedPages}</b><span>Analyzed</span></div><div class="kpi"><b>${data.totals.findings}</b><span>Occurrences</span></div><div class="kpi"><b>${data.totals.uniqueRules}</b><span>Rule types</span></div><div class="kpi"><b>${data.totals.affectedPages}</b><span>Affected pages</span></div></div><p><b>${coverageText}.</b> ${data.totals.actionableFindings} actionable occurrence${
+    <section class="section"><h2>Executive overview</h2><p class="notice">${esc(finalText)}</p><div class="kpis"><div class="kpi"><b>${data.coverage.requestedPages}</b><span>${scopePageTerm}</span></div><div class="kpi"><b>${data.coverage.analyzedPages}</b><span>Analyzed</span></div><div class="kpi"><b>${data.totals.findings}</b><span>Occurrences</span></div><div class="kpi"><b>${data.totals.uniqueRules}</b><span>Rule types</span></div><div class="kpi"><b>${data.totals.affectedPages}</b><span>Affected pages</span></div></div><p><b>${coverageText}.</b> ${data.totals.actionableFindings} actionable occurrence${
       data.totals.actionableFindings === 1 ? '' : 's'
     } exclude FIXED and WAIVED states.</p></section>
     <section class="section"><h2>Recorded distribution and action priority</h2><div class="grid"><div><h3>All recorded states by severity</h3>${bars(
@@ -145,8 +153,8 @@ export function renderReportHtml(data: ReportData): string {
     )}</div></div>${priority ? `<p>Action priority: <b>${esc(priority.ruleId)}</b> has ${priority.actionableOccurrences} actionable occurrence(s) across ${priority.actionableAffectedPages} actionable page(s) (worst: ${esc(priority.actionableMaxSeverity ?? 'MINOR')}). Priority reflects actionable observed severity and frequency, not effort or root cause.</p>` : '<p>No actionable occurrences were recorded. This does not establish accessibility conformance; recorded FIXED or WAIVED states are not actions to start fixing.</p>'}</section>
     ${data.comparison ? `<section class="section"><h2>Changes since comparable scan</h2><p>The prior scan completed ${esc(
       fmt(data.comparison.prevCompletedAt)
-    )} with the same requested URL set. It recorded ${data.comparison.prevTotal} occurrence(s); this scan records ${data.totals.findings} current occurrence(s). Current REGRESSED states: ${data.comparison.regressed}.</p><p>${data.comparison.fixed.length} derived fixed transition${data.comparison.fixed.length === 1 ? '' : 's'} are shown below. They reference prior observations and are not current-scan findings or current totals.</p>${data.comparison.fixed.length ? `<table><thead><tr><th>Prior rule</th><th>Prior URL</th><th>Prior observation / evidence</th></tr></thead><tbody>${data.comparison.fixed.map((transition) => `<tr><td>${esc(transition.ruleId)}<br>${esc(short(transition.message, 180))}</td><td>${esc(transition.priorPageUrl)}</td><td><code>${esc(transition.priorFindingId)}</code>${transition.priorEvidenceId ? `<br><code>${esc(transition.priorEvidenceId)}</code>` : '<br>Evidence was not retained'}</td></tr>`).join('')}</tbody></table>` : ''}</section>` : ''}
-    <section class="section"><h2>Scope and methodology</h2><p>Requested pages were loaded in headless Chromium and evaluated with axe-core checks tagged WCAG 2.0 A/AA. Automated scanning covers a subset of accessibility conditions. Manual checks remain needed for keyboard behavior, screen-reader experience, content, workflows, and conditions automation cannot determine.</p><p>${esc(finalText)}</p><p class="muted">${esc(data.comparisonNote)}</p></section>
+    )} with the ${scopeSetTerm}. It recorded ${data.comparison.prevTotal} occurrence(s); this scan records ${data.totals.findings} current occurrence(s). Current REGRESSED states: ${data.comparison.regressed}.</p><p>${data.comparison.fixed.length} derived fixed transition${data.comparison.fixed.length === 1 ? '' : 's'} are shown below. They reference prior observations and are not current-scan findings or current totals.</p>${data.comparison.fixed.length ? `<table><thead><tr><th>Prior rule</th><th>Prior URL</th><th>Prior observation / evidence</th></tr></thead><tbody>${data.comparison.fixed.map((transition) => `<tr><td>${esc(transition.ruleId)}<br>${esc(short(transition.message, 180))}</td><td>${esc(transition.priorPageUrl)}</td><td><code>${esc(transition.priorFindingId)}</code>${transition.priorEvidenceId ? `<br><code>${esc(transition.priorEvidenceId)}</code>` : '<br>Evidence was not retained'}</td></tr>`).join('')}</tbody></table>` : ''}</section>` : ''}
+    <section class="section"><h2>Scope and methodology</h2><p>${scopePageTerm[0]!.toUpperCase()}${scopePageTerm.slice(1)} pages were loaded in headless Chromium and evaluated with axe-core checks tagged WCAG 2.0 A/AA. Automated scanning covers a subset of accessibility conditions. Manual checks remain needed for keyboard behavior, screen-reader experience, content, workflows, and conditions automation cannot determine.</p><p>${esc(finalText)}</p><p class="muted">${esc(data.comparisonNote)}</p></section>
     <section class="section"><h2>Rule summaries</h2><table><thead><tr><th>Rule / references</th><th>All occurrences</th><th>Actionable</th><th>Pages</th><th>Worst severity</th></tr></thead><tbody>${data.findingGroups
       .map(
         (group) => `<tr><td><b>${esc(group.ruleId)}</b><br>${esc(group.wcagRefs.join(', ') || 'No machine WCAG reference')}</td><td>${group.occurrences}</td><td>${group.actionableOccurrences}</td><td>${group.affectedPages}</td><td>${badge(group.maxSeverity, severityColor[group.maxSeverity])}</td></tr>`

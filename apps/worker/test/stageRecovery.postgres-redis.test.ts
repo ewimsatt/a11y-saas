@@ -7,6 +7,7 @@ import { Queue, QueueEvents, Worker } from 'bullmq';
 import Redis from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { claimNextStageDispatch, finalizeStageDispatchEnqueueSuccess } from '@a11y/db';
+import { canonicalUrlIdentity } from '@a11y/shared';
 import { claimStageRunAfterDispatchFinalize } from '../src/stageRunClaim.ts';
 
 const databaseUrl = process.env.STAGE_DISPATCH_TEST_DATABASE_URL;
@@ -80,7 +81,7 @@ describe('stage recovery with real PostgreSQL and Redis', () => {
       data: { projectId: project.id, status: 'failed', coverage: 'FAILED', completedAt: new Date() }
     });
     await prisma.page.create({
-      data: { scanId: scan.id, url: project.baseUrl, outcome: 'FAILED', error: 'prior failure' }
+      data: { scanId: scan.id, url: project.baseUrl, urlIdentity: canonicalUrlIdentity(project.baseUrl), outcome: 'FAILED', error: 'prior failure' }
     });
     await prisma.scanDispatch.create({
       data: {

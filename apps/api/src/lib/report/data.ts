@@ -35,6 +35,9 @@ export type ReportData = {
     id: string;
     status: string;
     coverage: Coverage;
+    discoveryEnabled: boolean;
+    discoveryState: 'PENDING' | 'FROZEN';
+    discoveryTruncated: boolean;
     startedAt: Date | null;
     completedAt: Date | null;
     isFinal: boolean;
@@ -170,7 +173,8 @@ export async function buildReportData(
         deriveReportFinality(candidate.status, candidate.coverage, candidate.pages)
       )
     );
-    comparisonNote = `Comparison searched the ${COMPARISON_SCAN_LIMIT} most recent earlier completed COMPLETE scans and requires an identical raw requested URL set to preserve legacy finding identity.`;
+    const scopeSetTerm = scan.discoveryEnabled ? 'frozen selected URL set' : 'raw requested URL set';
+    comparisonNote = `Comparison searched the ${COMPARISON_SCAN_LIMIT} most recent earlier completed COMPLETE scans and requires an identical ${scopeSetTerm} to preserve legacy finding identity.`;
     if (previous) {
       const [previousFindings, regressed] = await Promise.all([
         prisma.finding.findMany({
@@ -192,7 +196,7 @@ export async function buildReportData(
         }));
       comparison = { prevScanId: previous.id, prevCompletedAt: previous.completedAt, prevTotal: previousFindings.length, regressed, fixed };
     } else {
-      comparisonNote = `Comparison omitted: no identical raw requested URL set was found among the ${COMPARISON_SCAN_LIMIT} most recent earlier completed COMPLETE scans.`;
+      comparisonNote = `Comparison omitted: no identical ${scopeSetTerm} was found among the ${COMPARISON_SCAN_LIMIT} most recent earlier completed COMPLETE scans.`;
     }
   }
 
@@ -206,6 +210,9 @@ export async function buildReportData(
       id: scan.id,
       status: scan.status,
       coverage: scan.coverage,
+      discoveryEnabled: scan.discoveryEnabled,
+      discoveryState: scan.discoveryState,
+      discoveryTruncated: scan.discoveryTruncated,
       startedAt: scan.startedAt,
       completedAt: scan.completedAt,
       isFinal

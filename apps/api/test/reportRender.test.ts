@@ -44,7 +44,7 @@ function reportData(overrides: Partial<ReportData> = {}): ReportData {
   ];
   return {
     project: { name: 'Fixture', baseUrl: 'https://example.test' },
-    scan: { id: 'scan-1', status: 'completed', coverage: 'COMPLETE', startedAt: null, completedAt: null, isFinal: true },
+    scan: { id: 'scan-1', status: 'completed', coverage: 'COMPLETE', discoveryEnabled: true, discoveryState: 'FROZEN', discoveryTruncated: false, startedAt: null, completedAt: null, isFinal: true },
     generatedAt: new Date('2026-10-21T00:00:00Z'),
     coverage: { requestedPages: 2, analyzedPages: 2, failedPages: 0, pendingPages: 0, label: 'Complete requested-page coverage' },
     totals: { findings: findings.length, actionableFindings: findings.filter((item) => item.status === 'OPEN' || item.status === 'REGRESSED').length, uniqueRules: groups.length, affectedPages: findings.length, bySeverity: { CRITICAL: 1, SERIOUS: 1, MODERATE: 0, MINOR: 0 }, byStatus: { OPEN: 1, FIXED: 1, REGRESSED: 0, WAIVED: 0 } },
@@ -69,7 +69,7 @@ afterEach(() => dirs.splice(0).forEach((dir) => fs.rmSync(dir, { recursive: true
 
 describe.each(['PENDING', 'PARTIAL', 'FAILED'] as const)('provisional %s reports', (coverage) => {
   it('does not emit final conclusions, comparison, grades, or scores', async () => {
-    const data = reportData({ scan: { id: 'scan-1', status: coverage === 'PENDING' ? 'diffing' : 'completed', coverage, startedAt: null, completedAt: null, isFinal: false }, comparison: null });
+    const data = reportData({ scan: { id: 'scan-1', status: coverage === 'PENDING' ? 'diffing' : 'completed', coverage, discoveryEnabled: true, discoveryState: 'PENDING', discoveryTruncated: false, startedAt: null, completedAt: null, isFinal: false }, comparison: null });
     const html = renderReportHtml(data);
     expect(html).toContain('No final assessment or comparison is issued');
     expect(html).not.toMatch(/\b[0-9]+\/100\b|\bgrade\b/i);
@@ -80,8 +80,55 @@ describe.each(['PENDING', 'PARTIAL', 'FAILED'] as const)('provisional %s reports
   });
 });
 
+it('labels frozen default discovery and explicit scopes without implying whole-site coverage in HTML and PPTX', async () => {
+  const discovered = reportData();
+  const explicit = reportData();
+  const discoveredHtml = renderReportHtml(discovered);
+  const discoveredPptx = pptxText(await buildPptx(discovered));
+  expect(discoveredHtml).toContain('Frozen default discovered scope');
+  expect(discoveredPptx).toContain('Frozen default discovered scope');
+
+  explicit.scan.discoveryEnabled = false;
+  const explicitHtml = renderReportHtml(explicit);
+  const explicitPptx = pptxText(await buildPptx(explicit));
+  expect(explicitHtml).toContain('Frozen explicit selected scope');
+  expect(explicitPptx).toContain('Frozen explicit selected scope');
+  for (const text of [discoveredHtml, discoveredPptx, explicitHtml, explicitPptx]) {
+    expect(text).toContain('does not mean whole-site coverage');
+  }
+});
+
+it('labels discovered pages as selected scope rather than falsely calling them requested', async () => {
+  const discovered = reportData({
+    scan: { id: 'scan-1', status: 'completed', coverage: 'COMPLETE', discoveryEnabled: true, discoveryState: 'FROZEN', discoveryTruncated: true, startedAt: null, completedAt: null, isFinal: true },
+    comparison: { prevScanId: 'prior-scan', prevCompletedAt: new Date('2026-10-20T00:00:00Z'), prevTotal: 1, regressed: 0, fixed: [] },
+    comparisonNote: 'Comparison searched the 25 most recent earlier completed COMPLETE scans and requires an identical frozen selected URL set.'
+  });
+  const html = renderReportHtml(discovered);
+  const pptx = pptxText(await buildPptx(discovered));
+
+  expect(html).toContain('Frozen default discovered scope');
+  expect(html).toContain('selected page');
+  expect(html).toContain('frozen selected URL set');
+  expect(html).toContain('cap-truncated');
+  expect(html).not.toContain('every requested page was analyzed');
+  expect(html).not.toContain('same requested URL set');
+
+  expect(pptx).toContain('Frozen default discovered scope');
+  expect(pptx).toContain('Selected-page coverage');
+  expect(pptx).toContain('frozen selected URL set');
+  expect(pptx).toContain('cap-truncated');
+  expect(pptx).not.toContain('re-scan the same requested URL set');
+});
+
+it('clearly qualifies cap-truncated discovered scope', () => {
+  const html = renderReportHtml(reportData({ scan: { id: 'scan-1', status: 'completed', coverage: 'COMPLETE', discoveryEnabled: true, discoveryState: 'FROZEN', discoveryTruncated: true, startedAt: null, completedAt: null, isFinal: true } }));
+  expect(html).toContain('cap-truncated');
+  expect(html).toContain('beyond the 20-page cap were not scanned');
+});
+
 it('does not treat COMPLETE plus diffing as final', () => {
-  const html = renderReportHtml(reportData({ scan: { id: 'scan-1', status: 'diffing', coverage: 'COMPLETE', startedAt: null, completedAt: null, isFinal: false }, comparison: null }));
+  const html = renderReportHtml(reportData({ scan: { id: 'scan-1', status: 'diffing', coverage: 'COMPLETE', discoveryEnabled: true, discoveryState: 'FROZEN', discoveryTruncated: true, startedAt: null, completedAt: null, isFinal: false }, comparison: null }));
   expect(html).toContain('No final assessment or comparison is issued');
   expect(html).not.toContain('Comparable prior scan');
 });
