@@ -83,6 +83,15 @@ function serve(req, res, port) {
       <script>fetch('https://10.66.0.10/trap-https-fetch').catch(() => {});</script>
     `));
   }
+  if (req.url === '/https-discovery') {
+    return res.end(html(`<main id="discovery">owned HTTPS discovery fixture</main>
+      <a id="child" href="/https-child">selected child</a>
+      <a id="removed" href="/removed">removed before extraction</a>
+      <script>
+        document.querySelector('#removed').remove();
+        const added = document.createElement('a'); added.id = 'added'; added.href = '/https-added'; added.textContent = 'added after script'; document.body.append(added);
+      </script>`));
+  }
   if (req.url === '/service-worker') {
     return res.end(html(`<main id="service-worker">service worker test</main><script>
       window.swResult = navigator.serviceWorker

@@ -17,7 +17,7 @@ The useful output is not just a violation count. Findings retain their page, rul
 | Capability | What is implemented |
 | --- | --- |
 | Projects and scan history | Create projects with a base URL, start scans, and switch between recent runs in the console. |
-| Selected-page scanning | Scan the base URL from the console or submit up to 20 explicit HTTP(S) URLs through the API. No automatic site discovery, sitemap import, or link-following crawl. |
+| Scan scope | A default base-URL scan shallowly discovers up to 20 total same-origin public HTTP(S) pages from anchors rendered on that seed page. The API can instead scan up to 20 explicit URLs, with no discovery. No sitemap import, recursive crawl, or authenticated crawling. |
 | Automated accessibility checks | Run axe-core's WCAG 2.0 A/AA-tagged checks in Chromium, retaining a separate observation for each violating node. |
 | Finding-level evidence | Review page screenshots, affected selectors, DOM snippets, rule help, and failure explanations. Screenshot capture and analysis use the same page visit. |
 | Triage and waivers | Filter by severity, status, and WCAG reference; use triage presets; waive findings with a reason and optional future expiry; inspect waived findings and explicitly unwaive them. |
@@ -30,7 +30,7 @@ The useful output is not just a violation count. Findings retain their page, rul
 ## From a scan to a remediation handoff
 
 1. **Create a project** for an authorized test website.
-2. **Run a scan** of the base URL, or use the API to specify a repeatable page set.
+2. **Run a scan** of the base URL to shallowly discover its rendered same-origin seed-page links, or use the API to specify a repeatable explicit page set.
 3. **Check coverage first.** Review failed pages before interpreting findings or comparisons.
 4. **Investigate the evidence.** Filter findings, inspect the page screenshot and node HTML, and use the axe explanation to understand the observed failure.
 5. **Record exceptions deliberately.** Add a waiver reason and, when appropriate, an expiry; unwaive the finding when the exception no longer applies.
@@ -141,7 +141,7 @@ See [the local alpha guide](docs/friend-alpha-local.md) for Docker-context setup
 | `GET` | `/healthz` | API liveness. |
 | `GET`, `POST` | `/projects` | List projects or create one with `{ "name": "...", "baseUrl": "https://..." }`. |
 | `GET` | `/projects/:projectId/scans` | List the most recent 20 scans for a project. |
-| `POST` | `/scans/:projectId/run` | Enqueue a scan. `{}` uses the base URL; `{ "urls": [...] }` supplies up to 20 URLs. Supports `Idempotency-Key`. |
+| `POST` | `/scans/:projectId/run` | Enqueue a scan. `{}` starts from the base URL and shallowly discovers up to 20 total same-origin public HTTP(S) seed-page links. `{ "urls": [...] }` supplies up to 20 explicit URLs and bypasses discovery. No sitemap, recursive, or authenticated crawling. Supports `Idempotency-Key`. |
 | `GET` | `/scans/:id` | Read lifecycle status, coverage, and per-page outcomes. |
 | `GET` | `/scans/:id/issues` | Read findings, including waived findings, and comparison data. Reconciles expired waivers. |
 | `GET` | `/scans/:id/report?format=pdf` | Export `pdf`, `pptx`, `html`, or `csv`; default `pdf`. |
@@ -169,7 +169,7 @@ React console -> Fastify API -> PostgreSQL
              API evidence / report exports
 ```
 
-The queues are named `crawl`, `analyze`, `diff`, and `evidence`. They describe processing stages, not an automatic site-discovery crawler. The analyze stage navigates the supplied URLs, runs axe, captures screenshots, and persists evidence. The evidence stage finalizes the scan; it does not upload to object storage.
+The queues are named `crawl`, `analyze`, `diff`, and `evidence`. A default base-URL scan's CRAWL stage performs bounded, shallow same-origin discovery only from anchors rendered on its initial seed page, then freezes that persisted page scope. It does not use sitemap, recursive, or authenticated crawling. The analyze stage navigates the persisted URLs, runs axe, captures screenshots, and persists evidence. The evidence stage finalizes the scan; it does not upload to object storage.
 
 | Path | Responsibility |
 | --- | --- |
@@ -213,7 +213,7 @@ Generate explicitly synthetic zero-finding, incomplete, long-field, high-occurre
 
 - Authentication, authorization, tenant isolation, or public hosting approval.
 - Comprehensive WCAG coverage, manual audit automation, automatic fixes, or compliance certification.
-- Site discovery, sitemap crawling, and supported authenticated-page workflows.
+- Sitewide sitemap crawling, recursive crawling, or supported authenticated-page workflows.
 - Durable external evidence storage, retention policy, and production access controls.
 - Independent recovery scheduling, high-availability operations, and production monitoring.
 - Full long-term issue tracking and cross-scan waiver carry-forward.

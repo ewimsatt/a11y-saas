@@ -33,6 +33,14 @@ export const ScanCoverage = {
 export type ScanCoverage = (typeof ScanCoverage)[keyof typeof ScanCoverage]
 
 
+export const DiscoveryState = {
+  PENDING: 'PENDING',
+  FROZEN: 'FROZEN'
+} as const
+
+export type DiscoveryState = (typeof DiscoveryState)[keyof typeof DiscoveryState]
+
+
 export const PageOutcome = {
   PENDING: 'PENDING',
   ANALYZED: 'ANALYZED',

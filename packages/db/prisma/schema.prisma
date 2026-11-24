@@ -22,6 +22,11 @@ model Scan {
   coverage      ScanCoverage @default(PENDING)
   requestKey    String?    @unique @db.VarChar(255)
   requestDigest String?    @db.Char(64)
+  // True only for the default base-URL scan. Explicit selected scopes never discover links.
+  discoveryEnabled Boolean @default(false)
+  // A discovery scope is extracted once, then permanently fenced for retries.
+  discoveryState DiscoveryState @default(PENDING)
+  discoveryTruncated Boolean @default(false)
   startedAt     DateTime?
   completedAt   DateTime?
   updatedAt     DateTime   @updatedAt
@@ -64,6 +69,8 @@ model Page {
   id       String    @id @default(cuid())
   scanId   String
   url      String    @db.VarChar(1000)
+  // Canonical identity is durable uniqueness; url remains the browser/display URL.
+  urlIdentity String? @db.VarChar(1000)
   title    String?
   status   Int?
   outcome  PageOutcome @default(PENDING)
@@ -71,6 +78,7 @@ model Page {
   scan     Scan      @relation(fields: [scanId], references: [id], onDelete: Cascade)
   findings Finding[]
 
+  @@index([scanId, urlIdentity])
   @@index([scanId])
 }
 
@@ -127,6 +135,11 @@ enum ScanCoverage {
   COMPLETE
   PARTIAL
   FAILED
+}
+
+enum DiscoveryState {
+  PENDING
+  FROZEN
 }
 
 enum PageOutcome {

@@ -95,6 +95,29 @@ describe('createBrowserSession sidecar boundary', () => {
     await session.close();
   });
 
+  it('extracts rendered standard-anchor URLs through the remote-context page with service workers blocked', async () => {
+    const locator = { evaluateAll: vi.fn().mockResolvedValue(['https://allowed.example/one', 'https://allowed.example/two']) };
+    const page = {
+      goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
+      locator: vi.fn().mockReturnValue(locator),
+      title: vi.fn().mockResolvedValue('Fixture'),
+      screenshot: vi.fn().mockResolvedValue(Buffer.from('png'))
+    };
+    const context = { newPage: vi.fn().mockResolvedValue(page), close: vi.fn().mockResolvedValue(undefined) };
+    const browser = { newContext: vi.fn().mockResolvedValue(context), close: vi.fn().mockResolvedValue(undefined) };
+    connect.mockResolvedValue(browser);
+
+    const session = await createBrowserSession();
+    await expect(session.discoverPage('https://allowed.example/')).resolves.toEqual(['https://allowed.example/one', 'https://allowed.example/two']);
+
+    expect(browser.newContext).toHaveBeenCalledWith({ serviceWorkers: 'block' });
+    expect(page.goto).toHaveBeenCalledWith('https://allowed.example/', expect.anything());
+    expect(page.locator).toHaveBeenCalledWith('a[href]');
+    expect(locator.evaluateAll).toHaveBeenCalledTimes(1);
+    expect(launch).not.toHaveBeenCalled();
+    await session.close();
+  });
+
   it('fails closed before any local browser launch when the endpoint is missing or malformed', async () => {
     process.env.PLAYWRIGHT_WS_ENDPOINT = '';
     await expect(createBrowserSession()).rejects.toThrow('PLAYWRIGHT_WS_ENDPOINT');

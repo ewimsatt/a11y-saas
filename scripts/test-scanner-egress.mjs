@@ -72,7 +72,13 @@ function dnsState() {
   return execJson('dns', 'node', '-e', "fetch('http://127.0.0.1:8053/state').then(r=>r.text()).then(console.log)");
 }
 function browserProbe(...args) {
-  return parseLastJson(compose('exec', '-T', 'browser', 'node', '/app/fixtures/browser-probe.mjs', ...args), `browser probe ${args.join(' ') || '--core'}`);
+  return parseLastJson(compose('exec', '-T', 'browser', 'node', '/app/browser-probe.mjs', ...args), `browser probe ${args.join(' ') || '--core'}`);
+}
+function scannerProbe() {
+  return parseLastJson(
+    compose('exec', '-T', '-e', `PLAYWRIGHT_WS_ENDPOINT=ws://browser:3000/${syntheticToken}`, 'scanner-probe', 'node', '/app/node_modules/tsx/dist/cli.mjs', '/app/scanner-probe/scanner-probe.ts'),
+    'production scanner probe'
+  );
 }
 function isDenied(result) {
   return result.status === null || result.status >= 400 || result.error !== null;
@@ -101,7 +107,9 @@ try {
     'infra/playwright/seccomp_profile.json',
     'test/network-fixtures/dns-server.mjs',
     'test/network-fixtures/http-fixture.mjs',
-    'test/network-fixtures/browser-probe.mjs',
+    'test/network-fixtures/scanner-probe.ts',
+    'packages/scanner/src/axeAdapter.ts',
+    'packages/scanner/src/remoteDiscovery.ts',
     'test/network-fixtures/tls-cert.pem',
     'test/network-fixtures/tls-key.pem',
   ]) await access(join(root, path), constants.R_OK);
@@ -121,17 +129,22 @@ try {
   await waitForReady();
 
   const serviceIds = {};
-  for (const service of ['browser', 'smokescreen', 'fixture', 'dns']) {
+  for (const service of ['browser', 'scanner-probe', 'smokescreen', 'fixture', 'dns']) {
     serviceIds[service] = must(compose('ps', '-q', service), `locate ${service}`).stdout.trim();
     assert(serviceIds[service], `${service} container ID required`);
   }
   const browserInspect = JSON.parse(must(run(['inspect', serviceIds.browser]), 'inspect browser').stdout)[0];
+  const scannerProbeInspect = JSON.parse(must(run(['inspect', serviceIds['scanner-probe']]), 'inspect scanner probe').stdout)[0];
   const smokescreenInspect = JSON.parse(must(run(['inspect', serviceIds.smokescreen]), 'inspect Smokescreen').stdout)[0];
   assert.deepEqual(Object.keys(browserInspect.NetworkSettings.Networks).sort(), [`${project}_browser_internal`], 'browser may join only browser_internal');
+  assert.deepEqual(Object.keys(scannerProbeInspect.NetworkSettings.Networks).sort(), [`${project}_browser_internal`], 'scanner probe may join only browser_internal');
   assert(Object.values(browserInspect.NetworkSettings.Ports ?? {}).every((bindings) => bindings === null), 'browser socket must not be host-published');
+  assert(Object.values(scannerProbeInspect.NetworkSettings.Ports ?? {}).every((bindings) => bindings === null), 'scanner probe must not be host-published');
   assert(Object.values(smokescreenInspect.NetworkSettings.Ports ?? {}).every((bindings) => bindings === null), 'proxy port must not be host-published');
   assert.notEqual(browserInspect.Config.User, '', 'browser must declare a non-root user');
   assert.notEqual(browserInspect.Config.User, '0', 'browser must not run as root');
+  assert.equal(scannerProbeInspect.Config.User, 'node', 'scanner probe must run as node');
+  assert.equal(scannerProbeInspect.HostConfig.ReadonlyRootfs, true, 'scanner probe root filesystem must be read-only');
   assert.equal(smokescreenInspect.Config.User, 'nonroot:nonroot', 'Smokescreen must run as its nonroot image user');
   const upstreamAttempt = compose('exec', '-T', 'browser', 'node', '-e', "const net=require('net');const socket=net.connect({host:'smokescreen',port:4751,timeout:1500});socket.once('connect',()=>{console.error('unguarded upstream reachable');process.exit(1)});socket.once('error',()=>process.exit(0));socket.once('timeout',()=>{socket.destroy();process.exit(0)})");
   assert.equal(upstreamAttempt.status, 0, `browser-control peers must not reach Smokescreen's upstream listener on 4751:\n${upstreamAttempt.stdout}\n${upstreamAttempt.stderr}`);
@@ -195,6 +208,15 @@ try {
   assert(countersAfterCore.byTarget.public > 0, 'allowed traffic must hit the public fixture');
   for (const target of ['private', 'metadata', 'ipv6', 'denied-port']) assert.equal(countersAfterCore.byTarget[target], 0, `${target} fixture counter must stay zero`);
   assert.equal(Object.keys(countersAfterCore.requests).some((key) => key.endsWith(':/sw.js')), false, 'blocked service worker script must never reach fixture');
+
+  resetCounters();
+  const discovery = scannerProbe();
+  assert.deepEqual(discovery.hrefs.sort(), ['https://allowed.test/https-added', 'https://allowed.test/https-child'], 'discovery extracts post-JS anchors and excludes removed anchors');
+  assert.equal(discovery.child.responseStatus, 200, `selected child scan must use the production remote BrowserSession: ${JSON.stringify(discovery.child)}`);
+  assert(discovery.child.screenshotBytes > 0, 'production child scan must produce a screenshot');
+  const discoveryCounters = fixtureCounters();
+  assert(Object.keys(discoveryCounters.requests).some((key) => key.endsWith(':/https-discovery')), 'HTTPS discovery document must reach the owned fixture through CONNECT');
+  assert(Object.keys(discoveryCounters.requests).some((key) => key.endsWith(':/https-child')), 'selected child must reach the owned fixture through CONNECT');
 
   resetCounters();
   setRebind('public');

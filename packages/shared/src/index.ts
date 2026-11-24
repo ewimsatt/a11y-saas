@@ -3,4 +3,5 @@ export * from './queues';
 export * from './urlGuard';
 export * from './failureReason';
 export * from './urlIdentity';
+export * from './discovery';
 export * from './comparableScan';

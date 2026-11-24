@@ -7,9 +7,10 @@ async function main() {
     prisma.project.create({ data: { name: 'Acceptance clean', baseUrl: `${fixtureOrigin}/clean` } }),
     prisma.project.create({ data: { name: 'Acceptance violations', baseUrl: `${fixtureOrigin}/violations` } }),
     prisma.project.create({ data: { name: 'Acceptance partial', baseUrl: `${fixtureOrigin}/clean` } }),
-    prisma.project.create({ data: { name: 'Acceptance atomic evidence', baseUrl: `${fixtureOrigin}/violations` } })
+    prisma.project.create({ data: { name: 'Acceptance atomic evidence', baseUrl: `${fixtureOrigin}/violations` } }),
+    prisma.project.create({ data: { name: 'Acceptance discovery', baseUrl: `${fixtureOrigin}/discovery` } })
   ]);
-  console.log(JSON.stringify({ cleanProjectId: projects[0].id, violationProjectId: projects[1].id, partialProjectId: projects[2].id, atomicEvidenceProjectId: projects[3].id }));
+  console.log(JSON.stringify({ cleanProjectId: projects[0].id, violationProjectId: projects[1].id, partialProjectId: projects[2].id, atomicEvidenceProjectId: projects[3].id, discoveryProjectId: projects[4].id }));
 }
 
 main().finally(() => prisma.$disconnect());

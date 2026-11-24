@@ -95,6 +95,8 @@ async function runAxe(page: import('playwright').Page) {
 }
 
 export type BrowserSession = {
+  /** Navigates only through the remote sidecar and returns browser-resolved <a href> values. */
+  discoverPage(url: string): Promise<string[]>;
   crawlPage(url: string): Promise<{ title: string; screenshotBuffer: Buffer }>;
   analyzePage(url: string): Promise<RawViolation[]>;
   scanPage(url: string): Promise<ScanResult>;
@@ -152,6 +154,11 @@ export async function createBrowserSession(): Promise<BrowserSession> {
   }
 
   return {
+    async discoverPage(url) {
+      const { discoverLinksFromRemoteBrowser } = await import('./remoteDiscovery.js');
+      const result = await discoverLinksFromRemoteBrowser(browser, url, NAV_OPTIONS);
+      return result.hrefs;
+    },
     crawlPage(url) {
       return withPage(url, async (page) => {
         const title = await page.title();

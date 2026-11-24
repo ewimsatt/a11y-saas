@@ -1,4 +1,4 @@
-import { QUEUES, checkScanTargetUrl, publicFailureReason } from '@a11y/shared';
+import { QUEUES, canonicalUrlIdentity, checkScanTargetUrl, publicFailureReason } from '@a11y/shared';
 import {
   advanceStageRun,
   claimNextStageDispatch,
@@ -24,6 +24,7 @@ import { dedupePageViolations } from './violationPersistence.js';
 import { DISPATCH_STAGES, stageJobId, stageJobOptions, type DispatchStage } from './stageDispatch.js';
 import { claimStageRunAfterDispatchFinalize } from './stageRunClaim.js';
 import { validateReadableEvidenceArtifacts } from './evidenceArtifacts.js';
+import { persistAndFreezeDiscoveryScope } from './seedDiscovery.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import Redis from 'ioredis';
@@ -157,8 +158,71 @@ async function persistPageViolations(
 }
 
 async function crawlStage(run: StageRun): Promise<void> {
+  // This read decides only whether a remote extraction is needed. It never
+  // decides durable scope: that happens below under both the stage and Scan row fences.
+  const initial = await prisma.scan.findUnique({
+    where: { id: run.scanId },
+    include: { pages: { orderBy: { id: 'asc' } } }
+  });
+  if (!initial) return;
+
+  let hrefs: string[] | null = null;
+  if (initial.discoveryEnabled && initial.discoveryState === 'PENDING') {
+    const seedUrl = initial.pages[0]?.url;
+    if (!seedUrl || !checkScanTargetUrl(seedUrl).ok) {
+      // This reaches processStage's existing CRAWL failure path without opening
+      // a browser connection for corrupt or legacy stored state.
+      throw new ScanPageError('NETWORK_POLICY_REJECTED');
+    }
+    const session = await createBrowserSession();
+    try {
+      hrefs = await session.discoverPage(seedUrl);
+    } finally {
+      await session.close();
+    }
+  }
+
   await prisma.$transaction(async (tx) => {
     if (!await lockOwned(tx, run)) return;
+    // Lock Scan separately from the stage run so a retry/re-delivery re-reads
+    // the durable discovery fence and cannot infer state from page count.
+    await tx.$queryRaw`SELECT id FROM "Scan" WHERE id = ${run.scanId} FOR UPDATE`;
+    const scan = await tx.scan.findUnique({
+      where: { id: run.scanId },
+      include: { pages: { orderBy: { id: 'asc' } } }
+    });
+    if (!scan) return;
+    // Legacy rows have NULL identity because PostgreSQL cannot reproduce WHATWG
+    // URL serialization. Normalize them under this Scan lock, and fail rather
+    // than silently collapse ambiguous historical aliases.
+    const identities = new Map<string, string>();
+    for (const page of scan.pages) {
+      const identity = canonicalUrlIdentity(page.url);
+      const prior = identities.get(identity);
+      if (prior && prior !== page.id) throw new Error(`Ambiguous legacy page identity for scan ${scan.id}`);
+      identities.set(identity, page.id);
+      if (page.urlIdentity === null) {
+        await tx.page.update({ where: { id: page.id }, data: { urlIdentity: identity } });
+        page.urlIdentity = identity;
+      } else if (page.urlIdentity !== identity) {
+        throw new Error(`Legacy page identity does not match runtime canonical identity for scan ${scan.id}`);
+      }
+    }
+
+    if (scan.discoveryEnabled && scan.discoveryState === 'PENDING') {
+      if (!hrefs) throw new Error('Discovery extraction was not available for a pending scan');
+      const seed = scan.pages[0];
+      if (!seed || !checkScanTargetUrl(seed.url).ok) throw new ScanPageError('NETWORK_POLICY_REJECTED');
+      await persistAndFreezeDiscoveryScope({
+        scan,
+        hrefs,
+        createPages: (data) => tx.page.createMany({ data, skipDuplicates: true }),
+        freeze: (data) => tx.scan.update({ where: { id: scan.id }, data }),
+        advance: () => advanceStageRun(tx, run, 'ANALYZE', stageJobId(run.scanId, 'ANALYZE', run.generation + 1))
+      });
+      return;
+    }
+
     await tx.scan.updateMany({ where: { id: run.scanId, status: { notIn: ['completed', 'failed'] } }, data: { status: 'crawling', coverage: 'PENDING' } });
     const advanced = await advanceStageRun(tx, run, 'ANALYZE', stageJobId(run.scanId, 'ANALYZE', run.generation + 1));
     if (!advanced) throw new Error('Lost crawl stage fence');

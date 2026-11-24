@@ -984,6 +984,9 @@ export const ScanScalarFieldEnum = {
   coverage: 'coverage',
   requestKey: 'requestKey',
   requestDigest: 'requestDigest',
+  discoveryEnabled: 'discoveryEnabled',
+  discoveryState: 'discoveryState',
+  discoveryTruncated: 'discoveryTruncated',
   startedAt: 'startedAt',
   completedAt: 'completedAt',
   updatedAt: 'updatedAt'
@@ -1020,6 +1023,7 @@ export const PageScalarFieldEnum = {
   id: 'id',
   scanId: 'scanId',
   url: 'url',
+  urlIdentity: 'urlIdentity',
   title: 'title',
   status: 'status',
   outcome: 'outcome',
@@ -1167,6 +1171,27 @@ export type EnumScanCoverageFieldRefInput<$PrismaModel> = FieldRefInputType<$Pri
  * Reference to a field of type 'ScanCoverage[]'
  */
 export type ListEnumScanCoverageFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScanCoverage[]'>
+    
+
+
+/**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+/**
+ * Reference to a field of type 'DiscoveryState'
+ */
+export type EnumDiscoveryStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DiscoveryState'>
+    
+
+
+/**
+ * Reference to a field of type 'DiscoveryState[]'
+ */
+export type ListEnumDiscoveryStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DiscoveryState[]'>
     
 
 

@@ -108,6 +108,7 @@ CLEAN_PROJECT=$(node -e 'console.log(JSON.parse(process.argv[1]).cleanProjectId)
 VIOLATION_PROJECT=$(node -e 'console.log(JSON.parse(process.argv[1]).violationProjectId)' "$SEED")
 PARTIAL_PROJECT=$(node -e 'console.log(JSON.parse(process.argv[1]).partialProjectId)' "$SEED")
 ATOMIC_EVIDENCE_PROJECT=$(node -e 'console.log(JSON.parse(process.argv[1]).atomicEvidenceProjectId)' "$SEED")
+DISCOVERY_PROJECT=$(node -e 'console.log(JSON.parse(process.argv[1]).discoveryProjectId)' "$SEED")
 run_scan() { api POST "/scans/$1/run" '{}' | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).scanId))'; }
 poll() {
   local id=$1 body status
@@ -124,18 +125,21 @@ poll() {
 CLEAN_SCAN=$(run_scan "$CLEAN_PROJECT")
 VIOLATION_SCAN=$(run_scan "$VIOLATION_PROJECT")
 PARTIAL_SCAN=$(run_scan "$PARTIAL_PROJECT")
+DISCOVERY_SCAN=$(run_scan "$DISCOVERY_PROJECT")
 add_failed_page "$PARTIAL_SCAN" "$FIXTURE_ORIGIN/failure"
 CLEAN=$(poll "$CLEAN_SCAN")
 VIOLATION=$(poll "$VIOLATION_SCAN")
 PARTIAL=$(poll "$PARTIAL_SCAN")
+DISCOVERY=$(poll "$DISCOVERY_SCAN")
 ISSUES=$(api GET "/scans/$VIOLATION_SCAN/issues")
 REPORT=$(api GET "/scans/$PARTIAL_SCAN/report?format=html")
 VIOLATION_REPORT=$(api GET "/scans/$VIOLATION_SCAN/report?format=html")
-node - "$CLEAN" "$VIOLATION" "$PARTIAL" "$ISSUES" "$REPORT" "$VIOLATION_REPORT" <<'NODE'
-const [cleanRaw, violationRaw, partialRaw, issuesRaw, report, violationReport] = process.argv.slice(2);
+node - "$CLEAN" "$VIOLATION" "$PARTIAL" "$DISCOVERY" "$ISSUES" "$REPORT" "$VIOLATION_REPORT" <<'NODE'
+const [cleanRaw, violationRaw, partialRaw, discoveryRaw, issuesRaw, report, violationReport] = process.argv.slice(2);
 const clean = JSON.parse(cleanRaw);
 const violation = JSON.parse(violationRaw);
 const partial = JSON.parse(partialRaw);
+const discovery = JSON.parse(discoveryRaw);
 const issues = JSON.parse(issuesRaw);
 const fail = (message) => { throw new Error(message); };
 if (clean.status !== 'completed' || clean.coverage !== 'COMPLETE' || clean._count.findings !== 0) fail(`clean scan was not a completed zero-finding scan: ${JSON.stringify(clean)}`);
@@ -144,9 +148,13 @@ const selectors = issues.issues.map((issue) => issue.selector).join(' ');
 if (!selectors.includes('.first-bad') || !selectors.includes('.second-bad')) fail(`missing node-specific evidence: ${selectors}`);
 if (partial.status !== 'completed' || partial.coverage !== 'PARTIAL') fail(`partial scan was not labeled partial: ${JSON.stringify(partial)}`);
 if (!partial.pages.some((page) => page.outcome === 'FAILED' && page.status === 503)) fail(`HTTP failure was not retained: ${JSON.stringify(partial.pages)}`);
+const discoveryUrls = discovery.pages.map((page) => page.url);
+if (discovery.status !== 'completed' || discovery.coverage !== 'COMPLETE' || discoveryUrls.length !== 5 || discovery.pages.some((page) => page.outcome !== 'ANALYZED')) fail(`seed discovery did not create and scan its bounded page scope: ${JSON.stringify(discovery)}`);
+for (const url of ['http://allowed.test/discovery', 'http://allowed.test/discovery#local', 'http://allowed.test/discovered-one', 'http://allowed.test/discovered-two#first', 'http://allowed.test/discovered-two#second']) if (!discoveryUrls.includes(url)) fail(`missing discovered URL ${url}: ${JSON.stringify(discoveryUrls)}`);
+if (discoveryUrls.some((url) => url.includes('outside.test') || url.includes('mailto:'))) fail(`unsafe discovery URL persisted: ${JSON.stringify(discoveryUrls)}`);
 if (!report.includes('PARTIAL coverage') || !report.includes('No final assessment or comparison is issued')) fail('partial report issued an unqualified assessment');
 if (!violationReport.includes('data:image/jpeg;base64,')) fail('report omitted a readable immutable evidence screenshot');
-console.log(JSON.stringify({ clean: { status: clean.status, coverage: clean.coverage, findings: clean._count.findings }, violation: { findings: violation._count.findings, selectors }, partial: { status: partial.status, coverage: partial.coverage, pages: partial.pages.map(({ outcome, status }) => ({ outcome, status })) } }, null, 2));
+console.log(JSON.stringify({ clean: { status: clean.status, coverage: clean.coverage, findings: clean._count.findings }, violation: { findings: violation._count.findings, selectors }, partial: { status: partial.status, coverage: partial.coverage, pages: partial.pages.map(({ outcome, status }) => ({ outcome, status })) }, discovery: { status: discovery.status, coverage: discovery.coverage, pages: discoveryUrls } }, null, 2));
 NODE
 
 compose exec -T api node /acceptance/acceptance-evidence.mjs "$ISSUES"

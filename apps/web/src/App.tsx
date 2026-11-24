@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 type Project = { id: string; name: string; baseUrl: string; _count?: { scans: number } }
-type Scan = { id: string; status: string; coverage?: 'PENDING' | 'COMPLETE' | 'PARTIAL' | 'FAILED'; pages?: Array<{ url: string; outcome: 'PENDING' | 'ANALYZED' | 'FAILED'; status?: number | null; error?: string | null }>; startedAt?: string | null; completedAt?: string | null; _count?: { findings: number; pages: number } }
+type Scan = { id: string; status: string; coverage?: 'PENDING' | 'COMPLETE' | 'PARTIAL' | 'FAILED'; discoveryEnabled?: boolean; discoveryState?: 'PENDING' | 'FROZEN'; discoveryTruncated?: boolean; pages?: Array<{ url: string; outcome: 'PENDING' | 'ANALYZED' | 'FAILED'; status?: number | null; error?: string | null }>; startedAt?: string | null; completedAt?: string | null; _count?: { findings: number; pages: number } }
 type ScanIssue = { id: string; severity: 'CRITICAL' | 'SERIOUS' | 'MODERATE' | 'MINOR'; impact?: string; status: 'OPEN' | 'FIXED' | 'REGRESSED' | 'WAIVED'; message: string; selector?: string | null; waivedReason?: string | null; waivedExpiresAt?: string | null; rule?: { id: string; title: string; wcagRefs: string[]; wcagCriteria?: string[] } }
 type FixedTransition = { priorFindingId: string; priorEvidenceId: string | null; priorPageUrl: string; ruleId: string; message: string }
 type ScanComparison = { prevScanId: string; fixed: FixedTransition[] }
@@ -208,7 +208,7 @@ export default function App() {
         const scan: Scan = await res.json()
         if (pollToken.current !== token || projectIdRef.current !== pid || scanIdRef.current !== id) return
         if (scan.status === 'completed') {
-          const coverage = scan.coverage === 'COMPLETE' ? 'complete coverage' : `${(scan.coverage || 'unknown').toLowerCase()} coverage, not graded`
+          const coverage = scan.coverage === 'COMPLETE' ? 'complete selected-scope coverage, not whole-site coverage' : `${(scan.coverage || 'unknown').toLowerCase()} selected-scope coverage, not graded`
           setMsg(`Scan completed: ${scan._count?.findings ?? 0} findings, ${coverage}`)
           await loadIssues(id)
           if (pollToken.current !== token || projectIdRef.current !== pid || scanIdRef.current !== id) return
@@ -359,10 +359,15 @@ export default function App() {
     return true
   }), [issues, severityFilter, statusFilter, wcagFilter])
 
-  const scanLabel = (scan: Scan) => `${scan.startedAt ? new Date(scan.startedAt).toLocaleString() : 'unknown time'} [${scan.status}${scan.coverage ? `, ${scan.coverage.toLowerCase()}` : ''}]${scan._count ? ` - ${scan._count.findings} findings` : ''}`
-
+  const scanLabel = (scan: Scan) => `${scan.startedAt ? new Date(scan.startedAt).toLocaleString() : 'unknown time'} [${scan.status}${scan.coverage ? `, ${scan.coverage.toLowerCase()} selected-scope coverage` : ''}]${scan._count ? ` - ${scan._count.findings} findings` : ''}`
   const selectedScan = scans.find((scan) => scan.id === scanId)
-  const coverageLabel = selectedScan?.coverage ? `${selectedScan.coverage.toLowerCase()} coverage` : 'coverage pending'
+  const coverageLabel = !selectedScan?.coverage
+    ? 'coverage pending'
+    : selectedScan.discoveryState !== 'FROZEN'
+      ? `${selectedScan.coverage.toLowerCase()} scope pending`
+      : selectedScan.discoveryEnabled
+        ? `${selectedScan.coverage.toLowerCase()} frozen discovered scope${selectedScan.discoveryTruncated ? ', cap-truncated' : ''}`
+        : `${selectedScan.coverage.toLowerCase()} frozen explicit scope`
   const resetFilters = () => { setSeverityFilter('ALL'); setStatusFilter('ALL'); setWcagFilter('') }
 
   return <main className="app">
@@ -376,7 +381,7 @@ export default function App() {
       <div className="workspace-grid">
         <label>Project<select aria-label="Project" value={projectId} onChange={(event) => changeProject(event.target.value)}><option value="">Select project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
         <label>Scan<select aria-label="Scan" value={visibleScan ? scanId : ''} onChange={(event) => changeScan(event.target.value)} disabled={scansLoading}><option value="">{scansLoading ? 'Loading scans…' : 'Select scan'}</option>{scans.map((scan) => <option key={scan.id} value={scan.id}>{scanLabel(scan)}</option>)}</select></label>
-        <label className="scan-targets">Pages to scan (optional)<textarea aria-label="Pages to scan (optional)" value={requestedUrls} onChange={(event) => setRequestedUrls(event.target.value)} placeholder="One authorized HTTP(S) URL per line. Leave blank to scan the project URL." /><span className="helper">Up to 20 distinct URLs. The scanner validates every submitted URL.</span></label>
+        <label className="scan-targets">Pages to scan (optional)<textarea aria-label="Pages to scan (optional)" value={requestedUrls} onChange={(event) => setRequestedUrls(event.target.value)} placeholder="One authorized HTTP(S) URL per line. Leave blank to discover links from the project URL." /><span className="helper">Up to 20 distinct URLs. A blank list discovers same-origin links from the project URL, freezes that selected scope, and may cap it at 20 pages. Submitted URLs are an explicit selected scope.</span></label>
         <div className="primary-action"><button className="primary" onClick={runScan} disabled={!projectId || runPending}>{runPending ? 'Queueing scan…' : 'Run scan'}</button><button className="secondary" onClick={() => void loadIssues()} disabled={!visibleScan || issuesLoading}>{issuesLoading ? 'Loading findings…' : 'Load findings'}</button></div>
       </div>
       <div className="workspace-support">

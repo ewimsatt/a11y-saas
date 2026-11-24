@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { FastifyInstance } from 'fastify';
 import { prisma } from '@a11y/db';
 import { z } from 'zod';
-import { checkScanTargetUrl, publicFailureReason } from '@a11y/shared';
+import { checkScanTargetUrl, canonicalUrlIdentity, publicFailureReason } from '@a11y/shared';
 import { errorMessage } from '../lib/errors';
 import { presentIssue } from '../lib/issuePresentation';
 import { dispatchScan } from '../lib/scanDispatch';
@@ -19,6 +19,7 @@ const runScanSchema = z.object({
           if (!result.ok) ctx.addIssue({ code: 'custom', message: result.reason });
         })
     )
+    .min(1)
     .max(20)
     .optional()
 });
@@ -31,8 +32,8 @@ function requestKey(header: string | string[] | undefined): string | undefined {
   return key;
 }
 
-function requestDigest(projectId: string, urls: string[]): string {
-  return createHash('sha256').update(JSON.stringify({ projectId, urls })).digest('hex');
+function requestDigest(projectId: string, urls: string[], discoveryEnabled: boolean): string {
+  return createHash('sha256').update(JSON.stringify({ projectId, urls, discoveryEnabled })).digest('hex');
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -47,9 +48,10 @@ export async function scanRoutes(app: FastifyInstance) {
 
     try {
       const input = runScanSchema.parse(req.body ?? {});
+      const discoveryEnabled = !input.urls?.length;
       const urls = input.urls?.length ? input.urls : [project.baseUrl];
       const key = requestKey(req.headers['idempotency-key']);
-      const digest = requestDigest(projectId, urls);
+      const digest = requestDigest(projectId, urls, discoveryEnabled);
 
       if (key) {
         const existing = await prisma.scan.findUnique({ where: { requestKey: key } });
@@ -61,9 +63,18 @@ export async function scanRoutes(app: FastifyInstance) {
 
       const scan = await prisma.$transaction(async (tx) => {
         const created = await tx.scan.create({
-          data: { projectId, status: 'queued', startedAt: new Date(), requestKey: key, requestDigest: key ? digest : null }
+          data: {
+            projectId,
+            status: 'queued',
+            startedAt: new Date(),
+            requestKey: key,
+            requestDigest: key ? digest : null,
+            discoveryEnabled,
+            discoveryState: discoveryEnabled ? 'PENDING' : 'FROZEN',
+            discoveryTruncated: false
+          }
         });
-        await tx.page.createMany({ data: urls.map((url) => ({ scanId: created.id, url })) });
+        await tx.page.createMany({ data: urls.map((url) => ({ scanId: created.id, url, urlIdentity: canonicalUrlIdentity(url) })), skipDuplicates: true });
         await tx.scanDispatch.create({ data: { scanId: created.id, jobId: `${created.id}-crawl-0`, stage: 'CRAWL', generation: 0, state: 'PENDING' } });
         return created;
       });
@@ -80,7 +91,8 @@ export async function scanRoutes(app: FastifyInstance) {
           if (existing) {
             const input = runScanSchema.parse(req.body ?? {});
             const urls = input.urls?.length ? input.urls : [project.baseUrl];
-            if (existing.requestDigest === requestDigest(projectId, urls)) {
+            const discoveryEnabled = !input.urls?.length;
+            if (existing.requestDigest === requestDigest(projectId, urls, discoveryEnabled)) {
               return reply.code(202).send({ scanId: existing.id, projectId: existing.projectId, status: existing.status });
             }
             return reply.code(409).send({ error: 'Idempotency-Key was already used with a different scan request' });

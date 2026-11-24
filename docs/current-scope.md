@@ -9,7 +9,7 @@ This is a one-machine, local single-user accessibility-audit workflow. Its suppo
 1. Start the packaged local stack with synthetic credentials.
 2. Open the loopback console at `http://127.0.0.1:3010`.
 3. Create a project for an owned or authorized public HTTP(S) URL.
-4. Scan the base URL or paste up to 20 explicit URLs, one per line.
+4. Start a default base-URL scan, which shallowly discovers up to 20 total same-origin public HTTP(S) pages from anchors rendered on that seed page, or paste up to 20 explicit URLs, one per line, to bypass discovery.
 5. Follow truthful queued/running/terminal status and page coverage.
 6. Inspect findings, node-specific DOM/screenshot evidence, remediation details, comparisons, waivers, and exports.
 
@@ -53,6 +53,6 @@ GitHub Actions runs typecheck, real PostgreSQL/Redis service tests, production w
 
 ## Deliberately not shipped
 
-This alpha is **not approved for public, shared, hosted, LAN, or multi-tenant use**. It has no authentication, authorization, tenant isolation, public hosting approval, customer-data workflow, durable external evidence storage, retention policy, independent scheduler, high availability, production monitoring, automatic site discovery, authenticated-page support, comprehensive WCAG coverage, automatic remediation, or compliance certification.
+This alpha is **not approved for public, shared, hosted, LAN, or multi-tenant use**. It has no authentication, authorization, tenant isolation, public hosting approval, customer-data workflow, durable external evidence storage, retention policy, independent scheduler, high availability, production monitoring, sitemap or recursive site discovery, authenticated-page support, comprehensive WCAG coverage, automatic remediation, or compliance certification.
 
 Do not weaken scanner URL policy, expose the stack through a tunnel, bind it to a LAN interface, or treat a zero-finding result as legal/compliance assurance. The source and [friend-alpha guide](friend-alpha-local.md) are the current operational reference; historical planning documents are not.

@@ -117,6 +117,9 @@ export function buildFixtureData(kind: FixtureKind): ReportData {
       id: `fixture-${kind}`,
       status: incomplete ? 'diffing' : 'completed',
       coverage: incomplete ? 'PARTIAL' : 'COMPLETE',
+      discoveryEnabled: true,
+      discoveryState: incomplete ? 'PENDING' : 'FROZEN',
+      discoveryTruncated: false,
       startedAt: new Date('2026-10-21T00:00:00Z'),
       completedAt: new Date('2026-10-21T00:05:00Z'),
       isFinal: !incomplete

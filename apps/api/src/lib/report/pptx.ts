@@ -13,6 +13,17 @@ function shorten(value: string, max: number): string { return value.length > max
 function formatDate(value: Date | null): string {
   return value ? value.toISOString().replace('T', ' ').replace('.000Z', ' UTC') : 'Not recorded';
 }
+function scopeStatement(data: ReportData): string {
+  const kind = data.scan.discoveryEnabled ? 'default discovered' : 'explicit selected';
+  const scope = data.scan.discoveryState !== 'FROZEN'
+    ? `${kind[0]!.toUpperCase()}${kind.slice(1)} scope is pending.`
+    : data.scan.discoveryTruncated
+      ? `Frozen ${kind} scope is cap-truncated: pages beyond the 20-page cap were not scanned.`
+      : `Frozen ${kind} scope has no cap truncation.`;
+  return data.scan.isFinal
+    ? `Complete means every page in the frozen selected scope was analyzed. It does not mean whole-site coverage or accessibility conformance. ${scope}`
+    : `${data.scan.coverage} coverage or ${data.scan.status} status is provisional. No final assessment or comparison is issued. ${scope}`;
+}
 function footer(slide: PptxGenJS.Slide, number: number, data: ReportData): void {
   slide.addText(`PROPELLIC  |  Scan ${data.scan.id}`, { x: .55, y: 5.26, w: 6.8, h: .16, fontFace: 'Arial', fontSize: 7, color: C.muted, margin: 0 });
   slide.addText(String(number), { x: 9.1, y: 5.23, w: .3, h: .2, fontFace: 'Arial', fontSize: 8, color: C.muted, align: 'right', margin: 0 });
@@ -55,6 +66,8 @@ function addContrastRow(slide: PptxGenJS.Slide, pattern: ContrastPattern, y: num
 }
 
 export async function buildPptx(data: ReportData): Promise<Buffer> {
+  const scopePageTerm = data.scan.discoveryEnabled ? 'Selected' : 'Requested';
+  const rescanScopeTerm = data.scan.discoveryEnabled ? 'same frozen selected URL set' : 'same requested URL set';
   const pptx = new PptxCtor();
   pptx.layout = 'LAYOUT_16x9';
   pptx.author = 'Propellic';
@@ -67,14 +80,14 @@ export async function buildPptx(data: ReportData): Promise<Buffer> {
   cover.addText('PROPELLIC', { x: .65, y: .55, w: 2, h: .25, fontFace: 'Arial', fontSize: 11, bold: true, color: '83F0E4', charSpacing: 2, margin: 0 });
   cover.addText('Accessibility\nreport', { x: .65, y: 1.18, w: 6.5, h: 1.2, fontFace: 'Arial', fontSize: 34, bold: true, color: C.ivory, margin: 0, fit: 'shrink' });
   cover.addText(shorten(data.project.name, 90), { x: .65, y: 2.65, w: 7.8, h: .46, fontFace: 'Arial', fontSize: 21, color: 'C8DDD8', margin: 0, fit: 'shrink' });
-  cover.addText(`Status ${data.scan.status} | Requested-page coverage ${data.scan.coverage}`, { x: .65, y: 4.28, w: 8.7, h: .24, fontFace: 'Arial', fontSize: 10, color: C.ivory, margin: 0, fit: 'shrink' });
+  cover.addText(`Status ${data.scan.status} | ${scopePageTerm}-page coverage ${data.scan.coverage}`, { x: .65, y: 4.28, w: 8.7, h: .24, fontFace: 'Arial', fontSize: 10, color: C.ivory, margin: 0, fit: 'shrink' });
   cover.addText(`Scan completed ${formatDate(data.scan.completedAt)} | Exported ${formatDate(data.generatedAt)}`, { x: .65, y: 4.66, w: 8.7, h: .2, fontFace: 'Arial', fontSize: 8, color: 'C8DDD8', margin: 0, fit: 'shrink' });
   cover.addText(`Scan ID ${data.scan.id}`, { x: .65, y: 5.15, w: 6, h: .15, fontFace: 'Arial', fontSize: 7, color: 'B9D9D4', margin: 0 });
   cover.addText(String(number++), { x: 9.1, y: 5.15, w: .3, h: .15, fontFace: 'Arial', fontSize: 8, color: 'B9D9D4', align: 'right', margin: 0 });
 
-  { const slide = pptx.addSlide(); heading(slide, 'Executive overview', number++, data); card(slide, .55, String(data.coverage.requestedPages), 'Requested'); card(slide, 2.35, String(data.coverage.analyzedPages), 'Analyzed'); card(slide, 4.15, String(data.totals.findings), 'Occurrences'); card(slide, 5.95, String(data.totals.uniqueRules), 'Rule types'); card(slide, 7.75, String(data.totals.affectedPages), 'Affected pages'); const statement = data.scan.isFinal ? 'Complete means every requested page was analyzed. It does not establish whole-site coverage or accessibility conformance.' : `${data.scan.coverage} coverage or ${data.scan.status} status is provisional. No final assessment or comparison is issued.`; slide.addShape('rect', { x: .55, y: 2.72, w: 8.66, h: .82, fill: { color: 'FFF0C9' }, line: { color: 'B88717', pt: .8 } }); slide.addText(statement, { x: .78, y: 2.98, w: 8.15, h: .28, fontFace: 'Arial', fontSize: 12, bold: true, color: '574000', margin: 0, fit: 'shrink' }); slide.addText(`${data.totals.actionableFindings} actionable occurrence(s), excluding FIXED and WAIVED findings.`, { x: .55, y: 3.92, w: 8.65, h: .28, fontFace: 'Arial', fontSize: 13, color: C.charcoal, margin: 0, fit: 'shrink' }); }
+  { const slide = pptx.addSlide(); heading(slide, 'Executive overview', number++, data); card(slide, .55, String(data.coverage.requestedPages), 'Selected'); card(slide, 2.35, String(data.coverage.analyzedPages), 'Analyzed'); card(slide, 4.15, String(data.totals.findings), 'Occurrences'); card(slide, 5.95, String(data.totals.uniqueRules), 'Rule types'); card(slide, 7.75, String(data.totals.affectedPages), 'Affected pages'); slide.addShape('rect', { x: .55, y: 2.72, w: 8.66, h: 1.08, fill: { color: 'FFF0C9' }, line: { color: 'B88717', pt: .8 } }); slide.addText(scopeStatement(data), { x: .78, y: 2.9, w: 8.15, h: .66, fontFace: 'Arial', fontSize: 11, bold: true, color: '574000', margin: 0, fit: 'shrink' }); slide.addText(`${data.totals.actionableFindings} actionable occurrence(s), excluding FIXED and WAIVED findings.`, { x: .55, y: 4.03, w: 8.65, h: .28, fontFace: 'Arial', fontSize: 13, color: C.charcoal, margin: 0, fit: 'shrink' }); }
   { const slide = pptx.addSlide(); heading(slide, 'Observed distribution', number++, data); slide.addChart(pptx.ChartType.bar, [{ name: 'Occurrences', labels: SEVERITY_ORDER, values: SEVERITY_ORDER.map((item) => data.totals.bySeverity[item]) }], { x: .55, y: 1.1, w: 5.4, h: 3.75, barDir: 'bar', chartColors: SEVERITY_ORDER.map((item) => severity[item]), showValue: true, showLegend: false, catAxisLabelColor: C.charcoal, valAxisLabelColor: C.muted, valGridLine: { color: C.line, size: .5 } }); const priority = data.actionableGroups[0]; slide.addText('Action priority', { x: 6.35, y: 1.3, w: 2.4, h: .2, fontFace: 'Arial', fontSize: 15, bold: true, color: C.charcoal, margin: 0 }); slide.addText(priority ? `${priority.ruleId}\n${priority.actionableOccurrences} actionable occurrence(s) across ${priority.actionableAffectedPages} actionable page(s) (worst: ${priority.actionableMaxSeverity ?? 'MINOR'}). Priority reflects actionable observed severity and frequency, not effort or root cause.` : 'No actionable occurrences were recorded. This is not an accessibility conformance result.', { x: 6.35, y: 1.72, w: 2.6, h: 1.5, fontFace: 'Arial', fontSize: 13, color: C.charcoal, margin: 0, fit: 'shrink' }); }
-  { const slide = pptx.addSlide(); heading(slide, 'Scope and methodology', number++, data); slide.addText('Requested pages were loaded in Chromium and evaluated with axe-core checks tagged WCAG 2.0 A/AA.', { x: .65, y: 1.25, w: 8.2, h: .36, fontFace: 'Arial', fontSize: 16, bold: true, color: C.charcoal, margin: 0, fit: 'shrink' }); slide.addText([{ text: 'Coverage is limited to the requested page set.', options: { bullet: true, breakLine: true } }, { text: 'Manual checks remain needed for keyboard paths, screen-reader experience, content, workflows, and conditions automation cannot determine.', options: { bullet: true, breakLine: true } }, { text: 'All recorded states appear in distribution; action priority excludes FIXED and WAIVED findings.', options: { bullet: true } }], { x: .8, y: 2.05, w: 7.8, h: 1.6, fontFace: 'Arial', fontSize: 15, color: C.charcoal, margin: 0, breakLine: false }); }
+  { const slide = pptx.addSlide(); heading(slide, 'Scope and methodology', number++, data); slide.addText('Selected pages were loaded in Chromium and evaluated with axe-core checks tagged WCAG 2.0 A/AA.', { x: .65, y: 1.25, w: 8.2, h: .36, fontFace: 'Arial', fontSize: 16, bold: true, color: C.charcoal, margin: 0, fit: 'shrink' }); slide.addText([{ text: scopeStatement(data), options: { bullet: true, breakLine: true } }, { text: 'Manual checks remain needed for keyboard paths, screen-reader experience, content, workflows, and conditions automation cannot determine.', options: { bullet: true, breakLine: true } }, { text: 'All recorded states appear in distribution; action priority excludes FIXED and WAIVED findings.', options: { bullet: true } }], { x: .8, y: 2.05, w: 7.8, h: 1.6, fontFace: 'Arial', fontSize: 15, color: C.charcoal, margin: 0, breakLine: false }); }
 
   const groupPages = Array.from(
     { length: Math.ceil(data.findingGroups.length / 7) },
@@ -185,7 +198,7 @@ export async function buildPptx(data: ReportData): Promise<Buffer> {
     const steps = [
       ['01', 'LOCATE', 'Use the finding ID, URL, selector, and observed detail to reproduce the recorded state.'],
       ['02', 'REPAIR', 'Fix the rendered component behavior or content. Treat reported patterns as leads, not assumed root causes.'],
-      ['03', 'VERIFY', 'Exercise the affected state, run relevant manual checks, then re-scan the same requested URL set.']
+      ['03', 'VERIFY', `Exercise the affected state, run relevant manual checks, then re-scan the ${rescanScopeTerm}.`]
     ] as const;
     steps.forEach(([step, label, text], index) => {
       const x = .55 + index * 2.9;

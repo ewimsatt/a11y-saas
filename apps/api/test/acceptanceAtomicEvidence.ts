@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { prisma } from '@a11y/db';
+import { canonicalUrlIdentity } from '@a11y/shared';
 
 type Snapshot = {
   scanId: string;
@@ -196,7 +197,7 @@ async function createQueuedScan(projectId: string) {
     const created = await tx.scan.create({
       data: { projectId, status: 'failed', coverage: 'FAILED', startedAt: new Date() }
     });
-    await tx.page.create({ data: { scanId: created.id, url: project.baseUrl } });
+    await tx.page.create({ data: { scanId: created.id, url: project.baseUrl, urlIdentity: canonicalUrlIdentity(project.baseUrl) } });
     await tx.scanDispatch.create({
       data: {
         scanId: created.id,
